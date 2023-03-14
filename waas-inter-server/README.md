@@ -3,6 +3,9 @@
 
 # WaaS inter server
 
+## Prerequisites
+
+- [Golang 1.17+](https://go.dev/learn/)
 ## Setup
 
 1. Rename [`env.example`](env.example) to `.env` and provide the required values.
@@ -103,15 +106,14 @@ Response
     }
 }
 ```
-
-### Generate wallet and address
-This endpoint should be called when the user don't have a wallet at all along with the SDK where the polling and proccessing happens. The response contains is the operation number, which can be used to poll and wait for the pending address.
+### Create wallet
+Creates a new wallet for the user. The response contains the wallet resource name.
 
 Response
 ```json
 {
-    "opName": "operations/56c618ba-33a8-4293-ae58-d5fcf8d2dcaf",
-    "done": false
+    "name": "pools/596a9e36-51a5-4e94-831c-0b11cfc8e1a7/wallets/f01fd9bb-e397-41d4-ab73-faeb54c8aad2",
+    ...
 }
 ```
 
@@ -122,6 +124,17 @@ Response
 ```json
 {
     "opName": "operations/776182e0-f774-46e7-82a5-754214949c96",
+    "done": false
+}
+```
+
+### Generate wallet and address
+This endpoint should be called when the user don't have a wallet at all along with the SDK where the polling and proccessing happens. The response contains the operation number, which can be used to poll and wait for the pending address. 
+
+Response
+```json
+{
+    "opName": "operations/56c618ba-33a8-4293-ae58-d5fcf8d2dcaf",
     "done": false
 }
 ```
