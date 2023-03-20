@@ -1,5 +1,7 @@
 # Coinbase WaaS Integration
 
+Made by [<img src="https://github.com/DakaiGroup/coinbase-waas-integration/raw/main/dakai-logo.png" height="18" />](https://www.dakai.io/).
+
 ## The demo application has two parts:
 
 - in the [application](/application/) folder is the react native app, which is a basic wallet
