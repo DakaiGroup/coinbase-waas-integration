@@ -9,8 +9,6 @@ import (
 	"waas-example/inter-server/internal/configs"
 	"waas-example/inter-server/internal/db"
 
-	//"waas-example/inter-server/internal/responses"
-
 	"github.com/google/uuid"
 
 	"github.com/INFURA/go-ethlibs/node"
@@ -57,7 +55,6 @@ func CreatePool(ctx context.Context, poolName string) (*pools.Pool, error) {
 	return pool, nil
 }
 
-
 func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error) {
 
 	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
@@ -93,16 +90,14 @@ func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error
 	if err != nil {
 		return nil, err
 	}
-	pollCh := make(chan bool)
-	mpcOp, err := pollMPCOperations(ctx, pollCh, 200, metadata.GetDeviceGroup())
-	pollCh <- true
-	if err != nil {
+	resultCh, errorCh := pollMPCOperations(ctx, 200, metadata.GetDeviceGroup())
+	select {
+	case mpcOp := <-resultCh:
+		log.Printf("Succesfully got MPC Operation: %v", mpcOp.GetName())
+		return mpcOp, nil
+	case err := <-errorCh:
 		return nil, err
 	}
-
-	log.Printf("Succesfully got MPC Operation: %v", mpcOp.GetName())
-
-	return mpcOp, nil
 }
 
 func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, error) {
@@ -154,7 +149,7 @@ func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
 	return client.SendRawTransaction(ctx, "0x"+rawTx)
 }
 
-func pollMPCOperations(ctx context.Context, pollChan chan bool, pollInterval int64, deviceGroup string) (*keys.MPCOperation, error) {
+func pollMPCOperations(ctx context.Context, pollInterval int64, deviceGroup string) (chan *keys.MPCOperation, chan error) {
 
 	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
 
@@ -164,7 +159,7 @@ func pollMPCOperations(ctx context.Context, pollChan chan bool, pollInterval int
 
 	log.Println("Instantiated KeyServiceClient.")
 	log.Println("Polling for MPC Operations....")
-	
+
 	if pollInterval == 0 {
 		pollInterval = 200
 	}
@@ -172,19 +167,16 @@ func pollMPCOperations(ctx context.Context, pollChan chan bool, pollInterval int
 	timeout := time.After(time.Minute)
 	ticker := time.NewTicker(time.Duration(pollInterval) * time.Millisecond)
 
-	var response []*keys.MPCOperation
-	var retErr error
+	resultCh := make(chan *keys.MPCOperation)
+	errorCh := make(chan error)
 
-	POLL_LOOP:
+	go func(deviceGroup string) {
 		for {
 			select {
-			case <-pollChan:
-				log.Println("[DEBUG]: Broke out POLL_LOOP")
-				break POLL_LOOP
 			case <-timeout:
-				retErr = fmt.Errorf("timed out polling for device group %s", deviceGroup)
+				retErr := fmt.Errorf("timed out polling for device group %s", deviceGroup)
 				log.Println("[DEBUG]: timeout on polling for MPC Operations")
-				break POLL_LOOP
+				errorCh <- retErr
 			case <-ticker.C:
 				log.Println("[DEBUG]: Poolling MPC Operations")
 				req := &keys.ListMPCOperationsRequest{
@@ -194,26 +186,26 @@ func pollMPCOperations(ctx context.Context, pollChan chan bool, pollInterval int
 				if err != nil {
 					if clients.HTTPCode(err) == http.StatusNotFound {
 						// Continue polling if no MPC operation was found.
-						continue POLL_LOOP
+						continue
 					}
-
-					retErr = err
-
-					break POLL_LOOP
+					errorCh <- err
 				}
 
 				if len(listMpcOperationsResp.GetMpcOperations()) == 0 {
 					// Continue polling if there were no MPC operations.
-					continue POLL_LOOP
+					continue
 				}
 
-				response = listMpcOperationsResp.GetMpcOperations()
+				mpcOps := listMpcOperationsResp.GetMpcOperations()
 
-				if len(response) > 0 {
-					return response[0], nil
+				if len(mpcOps) > 0 {
+					resultCh <- mpcOps[0]
+					ticker.Stop()
+					return
 				}
 			}
 		}
+	}(deviceGroup)
 
-		return nil, retErr
+	return resultCh, errorCh
 }
