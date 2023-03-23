@@ -59,3 +59,12 @@ func RpcUrl() string {
 
     return os.Getenv("RPC_URL")
 }
+
+func Network() string {
+    err := godotenv.Load()
+    if err != nil {
+        log.Fatalf("Error loading .env file %v", err)
+    }
+
+    return os.Getenv("NETWORK")
+}

@@ -2,36 +2,35 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"net/url"
+	"net/http"
 	"time"
 	"waas-example/inter-server/internal/configs"
 	"waas-example/inter-server/internal/db"
-	"waas-example/inter-server/internal/responses"
+
+	//"waas-example/inter-server/internal/responses"
+
+	"github.com/google/uuid"
 
 	"github.com/INFURA/go-ethlibs/node"
-	"github.com/WaaS-Private-Preview-v1/waas-client-library/go/coinbase/cloud/clients"
-	"github.com/WaaS-Private-Preview-v1/waas-client-library/go/coinbase/cloud/clients/wallets/v1alpha1"
-	keys "github.com/WaaS-Private-Preview-v1/waas-client-library/go/coinbase/cloud/keys/v1alpha1"
-	pools "github.com/WaaS-Private-Preview-v1/waas-client-library/go/coinbase/cloud/pools/v1alpha1"
-	wallets "github.com/WaaS-Private-Preview-v1/waas-client-library/go/coinbase/cloud/wallets/v1alpha1"
+	"github.com/coinbase/waas-client-library-go/auth"
+	"github.com/coinbase/waas-client-library-go/clients"
+	v1clients "github.com/coinbase/waas-client-library-go/clients/v1"
+	keys "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_keys/v1"
+	wallets "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_wallets/v1"
+	pools "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/pools/v1"
 )
 
-// defaultHost is the default host to use for WaaS API clients.
-const host = "https://cloud-api-beta.coinbase.com"
-
-var apiKeyName = configs.EnvApiKeyName()
-var apiPrivateKey = configs.EnvApiPrivateKey()
+var authOpt = clients.WithAPIKey(&auth.APIKey{
+	Name:       configs.EnvApiKeyName(),
+	PrivateKey: configs.EnvApiPrivateKey(),
+})
 
 func CreatePool(ctx context.Context, poolName string) (*pools.Pool, error) {
-	endpoint, err := url.Parse(host)
 
-	endpoint.Path = "waas/pools"
+	client, err := v1clients.NewPoolServiceClient(ctx, authOpt)
 
-	client, err := clients.NewV1Alpha1PoolServiceClient(
-		ctx,
-		endpoint.String(),
-		clients.WithCloudAPIKeyAuth(clients.WithAPIKey(apiKeyName, apiPrivateKey)))
 	if err != nil {
 		log.Fatalf("error instantiating PoolService client: %v", err)
 	}
@@ -39,13 +38,11 @@ func CreatePool(ctx context.Context, poolName string) (*pools.Pool, error) {
 	log.Println("Instantiated PoolServiceClient")
 	log.Println("Creating Pool....")
 
-	req := &pools.CreatePoolRequest{
+	pool, err := client.CreatePool(ctx, &pools.CreatePoolRequest{
 		Pool: &pools.Pool{
 			DisplayName: poolName,
 		},
-	}
-
-	pool, err := client.CreatePool(ctx, req)
+	})
 	if err != nil {
 		log.Printf("error creating pool: %v", err)
 		return nil, err
@@ -60,43 +57,11 @@ func CreatePool(ctx context.Context, poolName string) (*pools.Pool, error) {
 	return pool, nil
 }
 
-func CreateDeviceGroup(ctx context.Context, deviceId string, pool string) (*keys.DeviceGroup, error) {
-	endpoint, err := url.Parse(host)
-	endpoint.Path = "waas/keys"
 
-	client, err := clients.NewV1Alpha1KeyServiceClient(
-		ctx,
-		endpoint.String(),
-		clients.WithCloudAPIKeyAuth(clients.WithAPIKey(apiKeyName, apiPrivateKey)))
-	if err != nil {
-		log.Fatalf("error instantiating KeyService client: %v", err)
-	}
+func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error) {
 
-	log.Println("Instantiated KeyServiceClient.")
-	log.Println("Creating Device group....")
+	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
 
-	deviceGroupReq, err := client.CreateDeviceGroup(ctx, &keys.CreateDeviceGroupRequest{
-		Parent: pool,
-		DeviceGroup: &keys.DeviceGroup{
-			Devices: []string{deviceId},
-		},
-	})
-	if err != nil {
-		log.Printf("error creating device group request: %v", err)
-		return nil, err
-	}
-	return deviceGroupReq.Wait(ctx)
-}
-
-func CreateWallet(ctx context.Context, userId string) (*wallets.Wallet, error) {
-	endpoint, err := url.Parse(host)
-
-	endpoint.Path = "waas/wallets"
-
-	client, err := clients.NewV1Alpha1WalletServiceClient(
-		ctx,
-		endpoint.String(),
-		clients.WithCloudAPIKeyAuth(clients.WithAPIKey(apiKeyName, apiPrivateKey)))
 	if err != nil {
 		log.Fatalf("error instantiating WalletService client: %v", err)
 	}
@@ -110,37 +75,39 @@ func CreateWallet(ctx context.Context, userId string) (*wallets.Wallet, error) {
 		return nil, err
 	}
 
-	wallet, err := client.CreateWallet(ctx, &wallets.CreateWalletRequest{
-		Parent: user.Pool.Name,
-		Wallet: &wallets.Wallet{
-			DeviceGroup:    user.DeviceGroup,
-			GenerationType: wallets.Wallet_HD,
-		},
+	op, err := client.CreateMPCWallet(ctx, &wallets.CreateMPCWalletRequest{
+		Parent:    user.Pool.Name,
+		Device:    user.DeviceId,
+		MpcWallet: &wallets.MPCWallet{},
 	})
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Succesfully created wallet in waas: %v", wallet.Name)
 
-	_, err = db.UpdateUserWalletById(ctx, userId, wallet.Name)
+	metadata, _ := op.Metadata()
+	log.Printf("Succesfully CreateMPCWallet operation and the following deviceGroup: %v", metadata.GetDeviceGroup())
+
+	// save device group
+	_, err = db.UpdateDeviceGroupById(ctx, userId, metadata.GetDeviceGroup())
 
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Succesfully updated wallet for user: %v", user.Username)
+	pollCh := make(chan bool)
+	mpcOp, err := pollMPCOperations(ctx, pollCh, 200, metadata.GetDeviceGroup())
+	pollCh <- true
+	if err != nil {
+		return nil, err
+	}
 
-	return wallet, nil
+	log.Printf("Succesfully got MPC Operation: %v", mpcOp.GetName())
+
+	return mpcOp, nil
 }
 
-func GenerateAddress(ctx context.Context, userId string) (*responses.AddressGenerationResponse, error) {
-	endpoint, err := url.Parse(host)
+func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, error) {
 
-	endpoint.Path = "waas/wallets"
-
-	client, err := clients.NewV1Alpha1WalletServiceClient(
-		ctx,
-		endpoint.String(),
-		clients.WithCloudAPIKeyAuth(clients.WithAPIKey(apiKeyName, apiPrivateKey)))
+	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
 	if err != nil {
 		log.Fatalf("error instantiating WalletService client: %v", err)
 	}
@@ -154,10 +121,10 @@ func GenerateAddress(ctx context.Context, userId string) (*responses.AddressGene
 		return nil, err
 	}
 
-	addressOp, err := client.GenerateAddress(ctx, &wallets.GenerateAddressRequest{
-		Wallet:      user.Wallet,
-		Network:     "networks/ethereum-goerli",
-		AddressSpec: "addressSpecs/ethereum-standard-address",
+	address, err := client.GenerateAddress(ctx, &wallets.GenerateAddressRequest{
+		MpcWallet: user.Wallet,
+		Network:   configs.Network(),
+		RequestId: uuid.New().String(),
 	})
 
 	if err != nil {
@@ -165,17 +132,16 @@ func GenerateAddress(ctx context.Context, userId string) (*responses.AddressGene
 		return nil, err
 	}
 
-	log.Println("Sending addressOp completion to a goroutine...")
+	_, err = db.InsertNewUserAddressById(ctx, userId, address.GetName())
+	if err != nil {
+		log.Printf("error saving new address: %v", err)
+		return nil, err
+	}
 
-	ctxWT, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	go func() {
-		waitForAddressOp(ctxWT, addressOp, userId)
-		defer cancel()
-	}()
+	log.Printf("generated address: %v", address.GetName())
+	log.Printf("Succesfully updated addresses for user with id: %v", userId)
 
-	log.Printf("Successfully created generateAddressRequest: %v", addressOp.Name())
-
-	return &responses.AddressGenerationResponse{OpName: addressOp.Name(), Done: addressOp.Done()}, nil
+	return address, nil
 }
 
 // not using waas lib but logically it fits here
@@ -188,21 +154,66 @@ func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
 	return client.SendRawTransaction(ctx, "0x"+rawTx)
 }
 
-// goroutine to wait for the address and save it
-func waitForAddressOp(ctx context.Context, addressOp v1alpha1.ClientGenerateAddressOperation, userId string) (*wallets.Address, error) {
-	log.Println("Waiting for addressOp to complete...")
-	address, err := addressOp.Wait(ctx)
+func pollMPCOperations(ctx context.Context, pollChan chan bool, pollInterval int64, deviceGroup string) (*keys.MPCOperation, error) {
+
+	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
+
 	if err != nil {
-		log.Printf("error with wait signing: %v", err)
-		return nil, err
+		log.Fatalf("error instantiating KeyService client: %v", err)
 	}
 
-	_, err = db.InsertNewUserAddressById(ctx, userId, address.GetName())
-	if err != nil {
-		log.Printf("error saving new address: %v", err)
-		return nil, err
+	log.Println("Instantiated KeyServiceClient.")
+	log.Println("Polling for MPC Operations....")
+	
+	if pollInterval == 0 {
+		pollInterval = 200
 	}
-	log.Printf("generated address: %v", address.GetName())
-	log.Printf("Succesfully updated addresses for user with id: %v", userId)
-	return address, nil
+
+	timeout := time.After(time.Minute)
+	ticker := time.NewTicker(time.Duration(pollInterval) * time.Millisecond)
+
+	var response []*keys.MPCOperation
+	var retErr error
+
+	POLL_LOOP:
+		for {
+			select {
+			case <-pollChan:
+				log.Println("[DEBUG]: Broke out POLL_LOOP")
+				break POLL_LOOP
+			case <-timeout:
+				retErr = fmt.Errorf("timed out polling for device group %s", deviceGroup)
+				log.Println("[DEBUG]: timeout on polling for MPC Operations")
+				break POLL_LOOP
+			case <-ticker.C:
+				log.Println("[DEBUG]: Poolling MPC Operations")
+				req := &keys.ListMPCOperationsRequest{
+					Parent: deviceGroup,
+				}
+				listMpcOperationsResp, err := client.ListMPCOperations(context.Background(), req)
+				if err != nil {
+					if clients.HTTPCode(err) == http.StatusNotFound {
+						// Continue polling if no MPC operation was found.
+						continue POLL_LOOP
+					}
+
+					retErr = err
+
+					break POLL_LOOP
+				}
+
+				if len(listMpcOperationsResp.GetMpcOperations()) == 0 {
+					// Continue polling if there were no MPC operations.
+					continue POLL_LOOP
+				}
+
+				response = listMpcOperationsResp.GetMpcOperations()
+
+				if len(response) > 0 {
+					return response[0], nil
+				}
+			}
+		}
+
+		return nil, retErr
 }

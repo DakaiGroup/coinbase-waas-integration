@@ -50,7 +50,7 @@ func CreateWallet(c *gin.Context) {
 		return
 	}
 
-	wallet, err := services.CreateWallet(ctxWT, userId)
+	mpcOp, err := services.CreateWallet(ctxWT, userId)
 	if err != nil {
 		log.Printf("error creating wallet: %v", err)
 		c.JSON(http.StatusInternalServerError,
@@ -59,9 +59,9 @@ func CreateWallet(c *gin.Context) {
 				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
-	log.Printf("Successfully created wallet: %v", wallet)
+	log.Printf("Successfully created wallet: %v", mpcOp)
 
-	c.IndentedJSON(http.StatusOK, wallet)
+	c.IndentedJSON(http.StatusOK, mpcOp)
 }
 
 // POST /generate-address
@@ -115,36 +115,36 @@ func BroadcastTransaction(c *gin.Context) {
 }
 
 // POST /create-wallet-and-address
-func CreateUserWalletAndAddress(c *gin.Context) {
-	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
-	defer cancel()
+// func CreateUserWalletAndAddress(c *gin.Context) {
+// 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+// 	defer cancel()
 
-	userId, err := utils.ExtractTokenID(c)
+// 	userId, err := utils.ExtractTokenID(c)
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	_, err = services.CreateWallet(ctxWT, userId)
-	if err != nil {
-		log.Printf("error creating wallet: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			responses.Response{
-				Message: "error",
-				Data:    map[string]interface{}{"error": err.Error()}})
-		return
-	}
+// 	_, err = services.CreateWallet(ctxWT, userId)
+// 	if err != nil {
+// 		log.Printf("error creating wallet: %v", err)
+// 		c.JSON(http.StatusInternalServerError,
+// 			responses.Response{
+// 				Message: "error",
+// 				Data:    map[string]interface{}{"error": err.Error()}})
+// 		return
+// 	}
 
-	addressResp, err := services.GenerateAddress(ctxWT, userId)
-	if err != nil {
-		log.Printf("error generating address: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			responses.Response{
-				Message: "error",
-				Data:    map[string]interface{}{"error": err.Error()}})
-		return
-	}
+// 	addressResp, err := services.GenerateAddress(ctxWT, userId)
+// 	if err != nil {
+// 		log.Printf("error generating address: %v", err)
+// 		c.JSON(http.StatusInternalServerError,
+// 			responses.Response{
+// 				Message: "error",
+// 				Data:    map[string]interface{}{"error": err.Error()}})
+// 		return
+// 	}
 
-	c.IndentedJSON(http.StatusOK, addressResp)
-}
+// 	c.IndentedJSON(http.StatusOK, addressResp)
+// }

@@ -15,14 +15,13 @@ import (
 
 var userCollection *mongo.Collection = configs.GetCollection(configs.DB, "users")
 
-func CreateUser(ctx context.Context, registerInput requests.RegisterInput, hashedPassword []byte, poolModel *models.Pool, deviceGroup string) (*mongo.InsertOneResult, error) {
+func CreateUser(ctx context.Context, registerInput requests.RegisterInput, hashedPassword []byte, poolModel *models.Pool) (*mongo.InsertOneResult, error) {
 	newUser := models.User{
 		Id:          primitive.NewObjectID(),
 		Username:    html.EscapeString(strings.TrimSpace(registerInput.Username)),
 		Password:    string(hashedPassword),
 		DeviceId:    registerInput.DeviceId,
 		Pool:        *poolModel,
-		DeviceGroup: deviceGroup,
 	}
 
 	return userCollection.InsertOne(ctx, newUser)
@@ -59,6 +58,18 @@ func UpdateUserWalletById(ctx context.Context, userId string, walletName string)
 	}}
 
 	return userCollection.UpdateOne(ctx, filter, updateWallet)
+}
+
+func UpdateDeviceGroupById(ctx context.Context, userId string, deviceGroup string) (*mongo.UpdateResult, error) {
+	objId, _ := primitive.ObjectIDFromHex(userId)
+	filter := bson.D{{Key: "id", Value: objId}}
+
+	updateDeviceGroup := bson.D{{Key: "$set",
+		Value: bson.D{
+			{Key: "deviceGroup", Value: deviceGroup}},
+	}}
+
+	return userCollection.UpdateOne(ctx, filter, updateDeviceGroup)
 }
 
 func InsertNewUserAddressById(ctx context.Context, userId string, newAddress string) (*mongo.UpdateResult, error) {

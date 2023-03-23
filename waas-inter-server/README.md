@@ -20,6 +20,8 @@
 
 - `RPC_URL` is your rpc node url. (For better performance it is advised to use your custom node, but the public ones are fine too.)
 
+- `NETWORK` the blockchain network the app is on (needs to be provided in WaaS supported format).
+
 2. Build the project
 ```console
 go build ./cmd/inter-server/

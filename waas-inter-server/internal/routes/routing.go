@@ -21,5 +21,5 @@ func UserRoute(router *gin.Engine) {
 	protected.POST("/waas/create-wallet", controllers.CreateWallet)
 	protected.POST("/waas/generate-address", controllers.GenerateAddress)
 	protected.POST("/waas/broadcast-transaction", controllers.BroadcastTransaction)
-	protected.POST("/waas/create-wallet-and-address", controllers.CreateUserWalletAndAddress)
+	//protected.POST("/waas/create-wallet-and-address", controllers.CreateUserWalletAndAddress)
 }
