@@ -15,12 +15,12 @@ import (
 
 var userCollection *mongo.Collection = configs.GetCollection(configs.DB, "users")
 
-func CreateUser(ctx context.Context, registerInput requests.RegisterInput, hashedPassword []byte, poolModel *models.Pool) (*mongo.InsertOneResult, error) {
+func CreateUser(ctx context.Context, registerInput requests.RegisterInput, hashedPassword []byte, poolModel *models.Pool, deviceName string) (*mongo.InsertOneResult, error) {
 	newUser := models.User{
 		Id:          primitive.NewObjectID(),
 		Username:    html.EscapeString(strings.TrimSpace(registerInput.Username)),
 		Password:    string(hashedPassword),
-		DeviceId:    registerInput.DeviceId,
+		DeviceId:    deviceName,
 		Pool:        *poolModel,
 	}
 

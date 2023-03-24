@@ -9,6 +9,7 @@ import (
 	"waas-example/inter-server/internal/models"
 	"waas-example/inter-server/internal/requests"
 	"waas-example/inter-server/internal/responses"
+	"waas-example/inter-server/internal/services"
 	"waas-example/inter-server/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -52,7 +53,17 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	result, err := db.CreateUser(ctxWT, registerInput, hashedPassword, poolModel)
+	deviceName, err := services.RegisterDevice(ctxWT, registerInput.RegistrationData)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
+		return
+	}
+
+	result, err := db.CreateUser(ctxWT, registerInput, hashedPassword, poolModel, deviceName)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError,

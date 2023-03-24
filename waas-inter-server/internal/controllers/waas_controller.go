@@ -68,6 +68,7 @@ func CreateWallet(c *gin.Context) {
 func GenerateAddress(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
+
 	userId, err := utils.ExtractTokenID(c)
 
 	if err != nil {
@@ -112,4 +113,36 @@ func BroadcastTransaction(c *gin.Context) {
 
 	log.Printf("tx sent: %s", hash)
 	c.IndentedJSON(http.StatusOK, gin.H{"txHash": hash})
+}
+
+// POST /save-wallet
+func SaveWalletResource(c *gin.Context){
+	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	var wallet requests.WalletResource
+
+	if err := c.BindJSON(&wallet); err != nil {
+		return
+	}
+
+	userId, err := utils.ExtractTokenID(c)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	walletSaved, err := services.SaveWallet(ctxWT, userId, wallet.Wallet)
+
+	if err != nil {
+		log.Printf("error saving wallet: %v", err)
+		c.JSON(http.StatusInternalServerError,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, gin.H{"saved": walletSaved})
 }

@@ -9,8 +9,6 @@ import (
 	"waas-example/inter-server/internal/configs"
 	"waas-example/inter-server/internal/db"
 
-	"github.com/google/uuid"
-
 	"github.com/INFURA/go-ethlibs/node"
 	"github.com/coinbase/waas-client-library-go/auth"
 	"github.com/coinbase/waas-client-library-go/clients"
@@ -30,7 +28,7 @@ func CreatePool(ctx context.Context, poolName string) (*pools.Pool, error) {
 	client, err := v1clients.NewPoolServiceClient(ctx, authOpt)
 
 	if err != nil {
-		log.Fatalf("error instantiating PoolService client: %v", err)
+		log.Printf("error instantiating PoolService client: %v", err)
 	}
 
 	log.Println("Instantiated PoolServiceClient")
@@ -53,6 +51,23 @@ func CreatePool(ctx context.Context, poolName string) (*pools.Pool, error) {
 	}
 
 	return pool, nil
+}
+
+func RegisterDevice(ctx context.Context, registrationData string) (string, error) {
+	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
+	if err != nil {
+		log.Fatalf("error instantiating mpc key service client: %v", err)
+	}
+
+	device, err := client.RegisterDevice(ctx, &keys.RegisterDeviceRequest{
+		RegistrationData: []byte(registrationData),
+	})
+
+	if err != nil {
+		log.Printf("error registering device: %v", err)
+		return "", err
+	}
+	return device.GetName(), nil
 }
 
 func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error) {
@@ -119,7 +134,6 @@ func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, erro
 	address, err := client.GenerateAddress(ctx, &wallets.GenerateAddressRequest{
 		MpcWallet: user.Wallet,
 		Network:   configs.Network(),
-		RequestId: uuid.New().String(),
 	})
 
 	if err != nil {
@@ -149,6 +163,16 @@ func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
 	return client.SendRawTransaction(ctx, "0x"+rawTx)
 }
 
+func SaveWallet(ctx context.Context, userId string, walletId string) (bool, error) {
+	_, err := db.UpdateUserWalletById(ctx, userId, walletId)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func pollMPCOperations(ctx context.Context, pollInterval int64, deviceGroup string) (chan *keys.MPCOperation, chan error) {
 
 	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
@@ -172,6 +196,7 @@ func pollMPCOperations(ctx context.Context, pollInterval int64, deviceGroup stri
 
 	go func(deviceGroup string) {
 		for {
+			log.Println("Running select for ListMPCOperations...")
 			select {
 			case <-timeout:
 				retErr := fmt.Errorf("timed out polling for device group %s", deviceGroup)
