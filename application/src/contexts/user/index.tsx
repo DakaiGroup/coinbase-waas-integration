@@ -10,18 +10,20 @@ import type {
   IUserLoginResponseDTO,
   IUserLoginRequestDTO,
   IUserResponseDTO,
+  ISaveWalletRequestDTO,
+  ISaveWalletResponseDTO,
 } from '../../typings/DTOs';
 
 /* Data Things */
 import {
-  pollForPendingSeeds,
-  processPendingSeed,
-  waitPendingAddress,
-  initWalletService,
-  initKeyService,
-  registerDevice,
-  getAddress,
-} from '@WaaS-Private-Preview-v1/react-native-waas-sdk';
+  initMPCWalletService,
+  waitPendingMPCWallet,
+  computeMPCOperation,
+  getRegistrationData,
+  initMPCKeyService,
+  bootstrapDevice,
+  initMPCSdk,
+} from '@coinbase/waas-sdk-react-native';
 import { generateAccountAddress, transformIUserResponseDTO } from './helper';
 import { API_KEY_NAME, API_PRIVATE_KEY } from '@env';
 import { api } from '../../utils';
@@ -49,24 +51,13 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
   const onCreateAddress = useCallback(async (): Promise<'ok' | string> => {
     try {
       if (user) {
-        const { opName } = await api<ICreateAddressResponseDTO, any>({
+        const { name: name2 } = await api<ICreateAddressResponseDTO, any>({
           method: 'POST',
           token: user.token,
           path: 'protected/waas/generate-address',
         });
 
-        await initKeyService(API_KEY_NAME, API_PRIVATE_KEY, true);
-        await initWalletService(API_KEY_NAME, API_PRIVATE_KEY);
-
-        if (!user.addresses?.length) {
-          const pendingSeeds = await pollForPendingSeeds(user.deviceGroup);
-          await Promise.all(pendingSeeds.map(x => processPendingSeed(x)));
-        }
-
-        const createdAddress = await waitPendingAddress(opName);
-        const retrievedAddress = await getAddress(createdAddress.Name);
-
-        const newAddress = generateAccountAddress(retrievedAddress.Name);
+        const newAddress = generateAccountAddress(name2);
 
         setUser(prev => ({
           ...prev!,
@@ -86,25 +77,43 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
   const onCreateWallet = useCallback(async (): Promise<'ok' | string> => {
     try {
       if (user) {
-        const { opName } = await api<ICreateWalletResponseDTO, any>({
+        const { name: name1, mpc_data } = await api<ICreateWalletResponseDTO, any>({
           method: 'POST',
           token: user.token,
-          path: 'protected/waas/create-wallet-and-address',
+          path: 'protected/waas/create-wallet',
         });
 
-        await initKeyService(API_KEY_NAME, API_PRIVATE_KEY, true);
-        await initWalletService(API_KEY_NAME, API_PRIVATE_KEY);
+        console.log({ name1, mpc_data });
 
-        const pendingSeeds = await pollForPendingSeeds(user.deviceGroup);
+        await initMPCSdk(true);
+        await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
+        await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
-        await Promise.all(pendingSeeds.map(x => processPendingSeed(x)));
+        await computeMPCOperation(mpc_data);
 
-        const createdAddress = await waitPendingAddress(opName);
-        const retrievedAddress = await getAddress(createdAddress.Name);
+        const createdWallet = await waitPendingMPCWallet(name1);
+
+        console.log({ createdWallet });
+
+        //API CALL
+        await api<ISaveWalletResponseDTO, ISaveWalletRequestDTO>({
+          method: 'POST',
+          token: user.token,
+          body: { wallet: createdWallet.Name },
+          path: 'protected/waas/save-wallet',
+        });
+
+        const { name: name2 } = await api<ICreateAddressResponseDTO, any>({
+          method: 'POST',
+          token: user.token,
+          path: 'protected/waas/generate-address',
+        });
+
+        console.log({ name2 });
 
         setUser(prev => ({
           ...prev!,
-          addresses: [generateAccountAddress(retrievedAddress.Name)],
+          addresses: [generateAccountAddress(name2)],
         }));
 
         return Promise.resolve('ok');
@@ -119,14 +128,16 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
 
   const onRegistration = useCallback(async (username: string, password: string): Promise<'ok' | string> => {
     try {
-      await initKeyService(API_KEY_NAME, API_PRIVATE_KEY, true);
-      const device = await registerDevice();
-      console.log(device.Name); //Tip: save this for development
+      await initMPCSdk(true);
+      await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
+      await bootstrapDevice(password);
+
+      const registrationData = await getRegistrationData();
 
       await api<IUserRegisterResponseDTO, IUserRegisterRequestDTO>({
         method: 'POST',
         path: 'user/register',
-        body: { username, password, deviceId: device.Name },
+        body: { username, password, registrationData },
       });
 
       return Promise.resolve('ok');

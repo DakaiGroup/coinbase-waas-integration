@@ -5,18 +5,20 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 /* Types */
 import type { IBroadcastTransactionResponseDTO } from '../../typings/DTOs';
 import type { AccountAddress, TokenOrCoin } from '../../typings';
+import { computeMPCOperation, Transaction } from '@coinbase/waas-sdk-react-native';
 
 /* Data Things */
 import {
   pollForPendingSignatures,
-  processPendingSignature,
   createSignatureFromTx,
   getSignedTransaction,
-  initWalletService,
-  initKeyService,
+  initMPCWalletService,
+  waitPendingSignature,
+  initMPCKeyService,
   getAddress,
-} from '@WaaS-Private-Preview-v1/react-native-waas-sdk';
-import { API_KEY_NAME, API_PRIVATE_KEY, RPC_URL, CHAIN_ID, WAAS_NETWORK } from '@env';
+  initMPCSdk,
+} from '@coinbase/waas-sdk-react-native';
+import { API_KEY_NAME, API_PRIVATE_KEY, RPC_URL, CHAIN_ID } from '@env';
 import { ABI, TOKEN_ADDRESSES } from '../../constants';
 import { UserContext } from '../user';
 import { ethers } from 'ethers';
@@ -47,8 +49,9 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
     async (amount: string, from: AccountAddress, to: string) => {
       try {
         if (user) {
-          await initKeyService(API_KEY_NAME, API_PRIVATE_KEY, true);
-          await initWalletService(API_KEY_NAME, API_PRIVATE_KEY);
+          await initMPCSdk(true);
+          await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
+          await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
           const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
@@ -56,10 +59,10 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
           const txCount = await provider.getTransactionCount(from.address);
           const gasInfo = await provider.getFeeData();
           const retrievedAddress = await getAddress(from.rawAddress);
-          const keyName = retrievedAddress.Keys[0];
+          const keyName = retrievedAddress.MPCKeys[0];
 
           /* Prepare the transaction */
-          const transaction = {
+          const transaction: Transaction = {
             ChainID: CHAIN_ID,
             Nonce: txCount,
             MaxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
@@ -71,13 +74,15 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
           };
 
           /* Transact */
-          await createSignatureFromTx(keyName, WAAS_NETWORK, transaction);
+          await createSignatureFromTx(keyName, transaction);
 
           const pendingSignatures = await pollForPendingSignatures(user.deviceGroup);
 
-          const signatureResult = await processPendingSignature(pendingSignatures[0]!);
+          await computeMPCOperation(pendingSignatures[0]?.MPCData);
 
-          const signedTransaction = await getSignedTransaction(WAAS_NETWORK, keyName, transaction, signatureResult);
+          const signatureResult = await waitPendingSignature(pendingSignatures[0]?.Operation);
+
+          const signedTransaction = await getSignedTransaction(transaction, signatureResult);
 
           const response = await api<IBroadcastTransactionResponseDTO, any>({
             path: 'protected/waas/broadcast-transaction',
@@ -104,8 +109,9 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
       try {
         if (user) {
           if (token.address) {
-            await initKeyService(API_KEY_NAME, API_PRIVATE_KEY, true);
-            await initWalletService(API_KEY_NAME, API_PRIVATE_KEY);
+            await initMPCSdk(true);
+            await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
+            await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
             const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
@@ -113,7 +119,7 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             const txCount = await provider.getTransactionCount(from.address);
             const gasInfo = await provider.getFeeData();
             const retrievedAddress = await getAddress(from.rawAddress);
-            const keyName = retrievedAddress.Keys[0];
+            const keyName = retrievedAddress.MPCKeys[0];
 
             /* Preapate the contract */
             const tokenContract = new ethers.Contract(token.address, ABI, provider);
@@ -134,7 +140,7 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             ]);
 
             /* Prepare the transaction */
-            const transaction = {
+            const transaction: Transaction = {
               ChainID: CHAIN_ID,
               Nonce: txCount,
               MaxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
@@ -146,13 +152,15 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             };
 
             /* Transact */
-            await createSignatureFromTx(keyName, WAAS_NETWORK, transaction);
+            await createSignatureFromTx(keyName, transaction);
 
             const pendingSignatures = await pollForPendingSignatures(user.deviceGroup);
 
-            const signatureResult = await processPendingSignature(pendingSignatures[0]!);
+            await computeMPCOperation(pendingSignatures[0]?.MPCData);
 
-            const signedTransaction = await getSignedTransaction(WAAS_NETWORK, keyName, transaction, signatureResult);
+            const signatureResult = await waitPendingSignature(pendingSignatures[0]?.Operation);
+
+            const signedTransaction = await getSignedTransaction(transaction, signatureResult);
 
             const response = await api<IBroadcastTransactionResponseDTO, any>({
               path: 'protected/waas/broadcast-transaction',
@@ -179,8 +187,9 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
 
   const onGetAssets = useCallback(async (address: string) => {
     try {
-      await initKeyService(API_KEY_NAME, API_PRIVATE_KEY, true);
-      await initWalletService(API_KEY_NAME, API_PRIVATE_KEY);
+      await initMPCSdk(true);
+      await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
+      await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
       const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
