@@ -1,6 +1,6 @@
 {
   "name": "coinbase-waas-integration-react-native",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": false,
   "author": "Jacint Varga <jacint.varga@dakai.io> (https://www.dakai.io)",
   "keywords": [
@@ -16,7 +16,7 @@
     "pods": "pod-install --quiet"
   },
   "dependencies": {
-    "@WaaS-Private-Preview-v1/react-native-waas-sdk": "^0.1.7",
+    "@coinbase/waas-sdk-react-native": "^0.1.5",
     "@ethersproject/shims": "^5.7.0",
     "@mobile-reality/react-native-select-pro": "^2.1.1",
     "@react-native-clipboard/clipboard": "^1.11.1",
