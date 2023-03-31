@@ -109,7 +109,7 @@ func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerati
 	resultCh, errorCh := pollMPCOperations(ctx, 200, metadata.GetDeviceGroup())
 	select {
 	case mpcOp := <-resultCh:
-		return &responses.WalletGenerationResponse{WalletOpName: walletOp.Name(), MpcData: mpcOp.GetMpcData()}, nil
+		return &responses.WalletGenerationResponse{WalletOpName: walletOp.Name(), MpcData: mpcOp.GetMpcData(), DeviceGroup: metadata.GetDeviceGroup()}, nil
 	case err := <-errorCh:
 		return nil, err
 	}
