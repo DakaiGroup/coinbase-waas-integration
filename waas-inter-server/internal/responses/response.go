@@ -1,11 +1,11 @@
 package responses
 
 type Response struct {
-    Message string                 `json:"message"`
-    Data    map[string]interface{} `json:"data"`
+	Message string                 `json:"message"`
+	Data    map[string]interface{} `json:"data"`
 }
 
-type AddressGenerationResponse struct {
-	OpName  string `json:"opName"`
-	Done    bool   `json:"done"`
+type WalletGenerationResponse struct {
+	WalletOpName  string `json:"walletOpName"`
+	MpcData []byte `json:"mpcData"`
 }

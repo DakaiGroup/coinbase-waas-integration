@@ -8,6 +8,7 @@ import (
 	"time"
 	"waas-example/inter-server/internal/configs"
 	"waas-example/inter-server/internal/db"
+	"waas-example/inter-server/internal/responses"
 
 	"github.com/INFURA/go-ethlibs/node"
 	"github.com/coinbase/waas-client-library-go/auth"
@@ -70,7 +71,7 @@ func RegisterDevice(ctx context.Context, registrationData string) (string, error
 	return device.GetName(), nil
 }
 
-func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error) {
+func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerationResponse, error) {
 
 	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
 
@@ -87,7 +88,7 @@ func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error
 		return nil, err
 	}
 
-	op, err := client.CreateMPCWallet(ctx, &wallets.CreateMPCWalletRequest{
+	walletOp, err := client.CreateMPCWallet(ctx, &wallets.CreateMPCWalletRequest{
 		Parent:    user.Pool.Name,
 		Device:    user.DeviceId,
 		MpcWallet: &wallets.MPCWallet{},
@@ -96,7 +97,7 @@ func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error
 		return nil, err
 	}
 
-	metadata, _ := op.Metadata()
+	metadata, _ := walletOp.Metadata()
 	log.Printf("Succesfully CreateMPCWallet operation and the following deviceGroup: %v", metadata.GetDeviceGroup())
 
 	// save device group
@@ -108,8 +109,7 @@ func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error
 	resultCh, errorCh := pollMPCOperations(ctx, 200, metadata.GetDeviceGroup())
 	select {
 	case mpcOp := <-resultCh:
-		log.Printf("Succesfully got MPC Operation: %v", mpcOp.GetName())
-		return mpcOp, nil
+		return &responses.WalletGenerationResponse{WalletOpName: walletOp.Name(), MpcData: mpcOp.GetMpcData()}, nil
 	case err := <-errorCh:
 		return nil, err
 	}
@@ -196,7 +196,6 @@ func pollMPCOperations(ctx context.Context, pollInterval int64, deviceGroup stri
 
 	go func(deviceGroup string) {
 		for {
-			log.Println("Running select for ListMPCOperations...")
 			select {
 			case <-timeout:
 				retErr := fmt.Errorf("timed out polling for device group %s", deviceGroup)

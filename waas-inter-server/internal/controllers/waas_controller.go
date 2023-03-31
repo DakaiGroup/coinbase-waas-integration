@@ -59,7 +59,7 @@ func CreateWallet(c *gin.Context) {
 				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
-	log.Printf("Successfully created wallet: %v", mpcOp)
+	log.Printf("Successfully created MPC Operation: %v", mpcOp)
 
 	c.IndentedJSON(http.StatusOK, mpcOp)
 }
