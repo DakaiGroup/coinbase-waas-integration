@@ -42,6 +42,7 @@ export interface IUserResponseDTO {
 }
 
 export interface ICreateWalletResponseDTO {
+  deviceGroup: string;
   walletOpName: string;
   mpcData: string;
 }

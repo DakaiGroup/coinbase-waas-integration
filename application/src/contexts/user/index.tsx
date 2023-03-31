@@ -84,7 +84,7 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
         await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
         // Initiate wallet creation on our server
-        const { walletOpName, mpcData } = await api<ICreateWalletResponseDTO, any>({
+        const { walletOpName, mpcData, deviceGroup } = await api<ICreateWalletResponseDTO, any>({
           method: 'POST',
           token: user.token,
           path: 'protected/waas/create-wallet',
@@ -102,7 +102,7 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
           path: 'protected/waas/save-wallet',
         });
 
-        setUser(prev => ({ ...prev, wallet: createdWallet.Name }));
+        setUser(prev => ({ ...prev, deviceGroup, wallet: createdWallet.Name }));
 
         // Create address for our freshly created wallet
         await onCreateAddress();
