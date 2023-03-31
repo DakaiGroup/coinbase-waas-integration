@@ -89,9 +89,7 @@ function HomeScreen(props: Props) {
     }
   };
 
-  const onChangeSelectedAddress = (_, index: number) => {
-    setSelectedAddress(user?.addresses?.[index]?.address ?? '');
-  };
+  const onChangeSelectedAddress = (_, index: number) => setSelectedAddress(user?.addresses?.[index]?.address ?? '');
 
   const onCopySelectedAddress = () => Clipboard.setString(selectedAddress);
 

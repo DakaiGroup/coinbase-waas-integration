@@ -29,7 +29,7 @@ export interface IAPIRequest<Body> {
 export type User = {
   addresses?: Array<AccountAddress>;
   wallet?: string;
-  deviceGroup: string;
+  deviceGroup?: string;
   token: string;
   name: string;
 };
