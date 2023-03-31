@@ -8,5 +8,5 @@ type Response struct {
 type WalletGenerationResponse struct {
 	WalletOpName  string `json:"walletOpName"`
 	MpcData []byte `json:"mpcData"`
-	DeviceGroup  string `json:"deciveGroup"`
+	DeviceGroup  string `json:"deviceGroup"`
 }
