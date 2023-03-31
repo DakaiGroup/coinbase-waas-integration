@@ -55,10 +55,17 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
 
           const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
+          console.log({ provider }); //TODO remove debug log
+
           /* Get basic informations for transaction initiation */
           const txCount = await provider.getTransactionCount(from.address);
           const gasInfo = await provider.getFeeData();
+
+          console.log({ txCount, gasInfo }); //TODO remove debug log
+
           const retrievedAddress = await getAddress(from.rawAddress);
+
+          console.log({ retrievedAddress }); //TODO remove debug log
           const keyName = retrievedAddress.MPCKeys[0];
 
           /* Prepare the transaction */
@@ -74,15 +81,26 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
           };
 
           /* Transact */
-          await createSignatureFromTx(keyName, transaction);
+          const resp1 = await createSignatureFromTx(keyName, transaction);
+
+          console.log({ resp1 }); //TODO remove debug log
+          console.log({ user }); //TODO remove debug log
 
           const pendingSignatures = await pollForPendingSignatures(user.deviceGroup);
 
-          await computeMPCOperation(pendingSignatures[0]?.MPCData);
+          console.log({ pendingSignatures }); //TODO remove debug log
+
+          const resp2 = await computeMPCOperation(pendingSignatures[0]?.MPCData);
+
+          console.log([resp2]); //TODO remove debug log
 
           const signatureResult = await waitPendingSignature(pendingSignatures[0]?.Operation);
 
+          console.log({ signatureResult }); //TODO remove debug log
+
           const signedTransaction = await getSignedTransaction(transaction, signatureResult);
+
+          console.log({ signedTransaction }); //TODO remove debug log
 
           const response = await api<IBroadcastTransactionResponseDTO, any>({
             path: 'protected/waas/broadcast-transaction',
@@ -92,6 +110,7 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               rawTransaction: signedTransaction.RawTransaction,
             },
           });
+
           return Promise.resolve(response.txHash);
         } else {
           throw new Error('Please login first!');

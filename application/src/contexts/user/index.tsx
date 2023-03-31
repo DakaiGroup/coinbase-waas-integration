@@ -51,13 +51,14 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
   const onCreateAddress = useCallback(async (): Promise<'ok' | string> => {
     try {
       if (user) {
-        const { name: name2 } = await api<ICreateAddressResponseDTO, any>({
+        // Initiate address creation on our server
+        const { name } = await api<ICreateAddressResponseDTO, any>({
           method: 'POST',
           token: user.token,
           path: 'protected/waas/generate-address',
         });
 
-        const newAddress = generateAccountAddress(name2);
+        const newAddress = generateAccountAddress(name);
 
         setUser(prev => ({
           ...prev!,
@@ -77,25 +78,23 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
   const onCreateWallet = useCallback(async (): Promise<'ok' | string> => {
     try {
       if (user) {
-        const { name: name1, mpc_data } = await api<ICreateWalletResponseDTO, any>({
+        // Init WaaS services
+        await initMPCSdk(true);
+        await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
+        await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
+
+        // Initiate wallet creation on our server
+        const { walletOpName, mpcData } = await api<ICreateWalletResponseDTO, any>({
           method: 'POST',
           token: user.token,
           path: 'protected/waas/create-wallet',
         });
 
-        console.log({ name1, mpc_data });
+        await computeMPCOperation(mpcData);
 
-        await initMPCSdk(true);
-        await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
-        await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
+        const createdWallet = await waitPendingMPCWallet(walletOpName);
 
-        await computeMPCOperation(mpc_data);
-
-        const createdWallet = await waitPendingMPCWallet(name1);
-
-        console.log({ createdWallet });
-
-        //API CALL
+        // Save the created wallet into our DB
         await api<ISaveWalletResponseDTO, ISaveWalletRequestDTO>({
           method: 'POST',
           token: user.token,
@@ -103,18 +102,10 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
           path: 'protected/waas/save-wallet',
         });
 
-        const { name: name2 } = await api<ICreateAddressResponseDTO, any>({
-          method: 'POST',
-          token: user.token,
-          path: 'protected/waas/generate-address',
-        });
+        setUser(prev => ({ ...prev, wallet: createdWallet.Name }));
 
-        console.log({ name2 });
-
-        setUser(prev => ({
-          ...prev!,
-          addresses: [generateAccountAddress(name2)],
-        }));
+        // Create address for our freshly created wallet
+        await onCreateAddress();
 
         return Promise.resolve('ok');
       } else {
@@ -124,7 +115,7 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
       console.error(error);
       return Promise.reject(String(error?.message || error));
     }
-  }, [user]);
+  }, [user, onCreateAddress]);
 
   const onRegistration = useCallback(async (username: string, password: string): Promise<'ok' | string> => {
     try {

@@ -28,7 +28,7 @@ export const api = async <T, Body>({ method, path, body, token }: IAPIRequest<Bo
             try {
               const parsed = JSON.parse(await response.text());
               reject({
-                message: getErrorMessage(response.status, parsed?.message),
+                message: getErrorMessage(response.status, parsed?.data?.error),
                 code: response.status,
                 extra: parsed?.extra,
               });
