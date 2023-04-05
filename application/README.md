@@ -21,7 +21,6 @@ Rename `.env.template` to `.env` and provide the required values.
 - `API_KEY_NAME` and `API_PRIVATE_KEY` is your API credentials for Coinbase WaaS.
 - `API_BASE` is your endpoints base URL.
 - `RPC_URL` is your JSON RPC provider URL.
-- `WAAS_NETWORK` is your test network.
 - `EXPLORER_URL` is your blockchain explorer base URL.
 - `CHAIN_ID` is your node property.
 
