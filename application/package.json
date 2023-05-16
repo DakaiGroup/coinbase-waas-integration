@@ -1,0 +1,41 @@
+{
+  "name": "coinbase-waas-integration-react-native",
+  "version": "1.0.0",
+  "private": false,
+  "author": "Jacint Varga <jacint.varga@dakai.io> (https://www.dakai.io)",
+  "keywords": [
+    "react-native",
+    "ios",
+    "waas"
+  ],
+  "license": "Apache-2.0",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "pods": "pod-install --quiet"
+  },
+  "dependencies": {
+    "@coinbase/waas-sdk-react-native": "^0.1.6",
+    "@ethersproject/shims": "^5.7.0",
+    "@mobile-reality/react-native-select-pro": "^2.1.1",
+    "@react-native-clipboard/clipboard": "^1.11.1",
+    "@react-navigation/bottom-tabs": "^6.5.5",
+    "@react-navigation/native": "^6.1.1",
+    "@react-navigation/native-stack": "^6.9.7",
+    "ethers": "5.7.2",
+    "react": "18.1.0",
+    "react-native": "0.70.6",
+    "react-native-gesture-handler": "^2.9.0",
+    "react-native-safe-area-context": "^4.4.1",
+    "react-native-screens": "^3.18.2",
+    "react-native-svg": "^13.8.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.12.9",
+    "@babel/runtime": "^7.12.5",
+    "babel-plugin-module-resolver": "^4.1.0",
+    "metro-react-native-babel-preset": "0.72.3",
+    "react-native-dotenv": "^3.4.8"
+  }
+}
