@@ -39,7 +39,7 @@
 					"response": []
 				},
 				{
-					"name": "generate wallet and address",
+					"name": "save wallet",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -53,15 +53,24 @@
 						},
 						"method": "POST",
 						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"wallet\" : \"pools/596a9e36-51a5-4e94-831c-0b11cfc8e1a7/wallets/f01fd9bb-e397-41d4-ab73-faeb54c8aad2\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
 						"url": {
-							"raw": "{{host}}/protected/waas/create-wallet-and-address",
+							"raw": "{{host}}/protected/waas/save-wallet",
 							"host": [
 								"{{host}}"
 							],
 							"path": [
 								"protected",
 								"waas",
-								"create-wallet-and-address"
+								"save-wallet"
 							]
 						}
 					},
@@ -113,7 +122,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"rawTransaction\" : \"02f868058082040082040082f61894d8ddbfd00b958e94a024fb8c116ae89c70c6025782100080c080a0882f8f4c995e137280a00898a1252d8d888406b563ec011716087829996a93d3a0522831b77b1bb21422f08c059d4e063d007deaba00e0e878dc7277b762c8895a\"\n}",
+							"raw": "{\n    \"rawTransaction\" : \"02f8b005808459682f00856373d217f682cbf39490e74012256d74a12bf64bdcc307522df664440a80b844a9059cbb0000000000000000000000008e560e0b969b71844b321eb2767020504e6511ef0000000000000000000000000000000000000000000000056bc75e2d63100000c080a02f38f8a530b6ad2306751f5c0bfd06e70f6c2bd5352c4ed024e1da5281f9c066a07543c3a525934bc3ab4e74062499f79c9438eebecbacdba8a7c51e8a9fca002c\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -146,7 +155,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"gabkov\",\n    \"password\": \"mypassword\",\n    \"deviceId\": \"devices/36849790-8241-462d-94be-fb52fa8f0f62\"\n}",
+							"raw": "{\n    \"username\": \"gabkov\",\n    \"password\": \"123456\",\n    \"registrationData\": \"eyJwYXJ0aWNpcGFudElkIjoiMjQ2MGIwNjMtZGQyNC00NmZiLTk0OWUtNDYzM2VhZGUzZDAwIiwicGFydGl0aW9uIjoiMiJ9\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -173,7 +182,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"gabkov\",\n    \"password\": \"mypassword\"\n}",
+							"raw": "{\n    \"username\": \"gabkov\",\n    \"password\": \"123456\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"

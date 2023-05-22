@@ -1,7 +1,7 @@
 export interface IUserRegisterRequestDTO {
   username: string;
   password: string;
-  deviceId: string;
+  registrationData: String;
 }
 
 export interface IUserRegisterResponseDTO {
@@ -34,7 +34,7 @@ export interface IUserResponseDTO {
         displayName: string;
       };
       deviceId: string;
-      deviceGroup: string;
+      deviceGroup?: string;
       addresses?: { address: string }[];
       wallet?: string;
     };
@@ -42,15 +42,23 @@ export interface IUserResponseDTO {
 }
 
 export interface ICreateWalletResponseDTO {
-  opName: string;
-  done: string;
+  deviceGroup: string;
+  walletOpName: string;
+  mpcData: string;
 }
 
 export interface ICreateAddressResponseDTO {
-  opName: string;
-  done: string;
+  name: string;
 }
 
 export interface IBroadcastTransactionResponseDTO {
   txHash: string;
+}
+
+export interface ISaveWalletRequestDTO {
+  wallet: string;
+}
+
+export interface ISaveWalletResponseDTO {
+  saved: boolean;
 }

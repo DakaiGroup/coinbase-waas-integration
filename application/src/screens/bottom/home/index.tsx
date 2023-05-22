@@ -89,9 +89,7 @@ function HomeScreen(props: Props) {
     }
   };
 
-  const onChangeSelectedAddress = (_, index: number) => {
-    setSelectedAddress(user?.addresses?.[index]?.address ?? '');
-  };
+  const onChangeSelectedAddress = (_, index: number) => setSelectedAddress(user?.addresses?.[index]?.address ?? '');
 
   const onCopySelectedAddress = () => Clipboard.setString(selectedAddress);
 
@@ -115,7 +113,7 @@ function HomeScreen(props: Props) {
         <>
           <FolderIcon style={styles.folderIcon} />
           <Text type="bold" size="L" style={styles.noWalletText}>
-            You don't have any wallet yet.
+            You don't have a wallet yet.
           </Text>
           <Button title="Create wallet" onPress={onInitiateWalletCreation} loading={isWalletCreating} />
         </>
@@ -123,7 +121,7 @@ function HomeScreen(props: Props) {
         <>
           <FolderIcon style={styles.folderIcon} />
           <Text type="bold" size="L" style={styles.noWalletText}>
-            You don't have any address yet.
+            You don't have an address yet.
           </Text>
           <Button title="Create address" onPress={onInitiateAddressCreation} loading={isAddressCreating} />
         </>

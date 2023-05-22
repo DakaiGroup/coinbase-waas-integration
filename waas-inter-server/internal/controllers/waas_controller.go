@@ -40,7 +40,7 @@ func CreatePool(c *gin.Context) {
 
 // POST /create-wallet
 func CreateWallet(c *gin.Context) {
-	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
 	userId, err := utils.ExtractTokenID(c)
@@ -50,7 +50,7 @@ func CreateWallet(c *gin.Context) {
 		return
 	}
 
-	wallet, err := services.CreateWallet(ctxWT, userId)
+	mpcOp, err := services.CreateWallet(ctxWT, userId)
 	if err != nil {
 		log.Printf("error creating wallet: %v", err)
 		c.JSON(http.StatusInternalServerError,
@@ -59,15 +59,16 @@ func CreateWallet(c *gin.Context) {
 				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
-	log.Printf("Successfully created wallet: %v", wallet)
+	log.Printf("Successfully created MPC Operation: %v", mpcOp)
 
-	c.IndentedJSON(http.StatusOK, wallet)
+	c.IndentedJSON(http.StatusOK, mpcOp)
 }
 
 // POST /generate-address
 func GenerateAddress(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
+
 	userId, err := utils.ExtractTokenID(c)
 
 	if err != nil {
@@ -114,10 +115,16 @@ func BroadcastTransaction(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"txHash": hash})
 }
 
-// POST /create-wallet-and-address
-func CreateUserWalletAndAddress(c *gin.Context) {
-	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+// POST /save-wallet
+func SaveWalletResource(c *gin.Context){
+	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
+
+	var wallet requests.WalletResource
+
+	if err := c.BindJSON(&wallet); err != nil {
+		return
+	}
 
 	userId, err := utils.ExtractTokenID(c)
 
@@ -126,9 +133,10 @@ func CreateUserWalletAndAddress(c *gin.Context) {
 		return
 	}
 
-	_, err = services.CreateWallet(ctxWT, userId)
+	walletSaved, err := services.SaveWallet(ctxWT, userId, wallet.Wallet)
+
 	if err != nil {
-		log.Printf("error creating wallet: %v", err)
+		log.Printf("error saving wallet: %v", err)
 		c.JSON(http.StatusInternalServerError,
 			responses.Response{
 				Message: "error",
@@ -136,15 +144,5 @@ func CreateUserWalletAndAddress(c *gin.Context) {
 		return
 	}
 
-	addressResp, err := services.GenerateAddress(ctxWT, userId)
-	if err != nil {
-		log.Printf("error generating address: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			responses.Response{
-				Message: "error",
-				Data:    map[string]interface{}{"error": err.Error()}})
-		return
-	}
-
-	c.IndentedJSON(http.StatusOK, addressResp)
+	c.IndentedJSON(http.StatusOK, gin.H{"saved": walletSaved})
 }

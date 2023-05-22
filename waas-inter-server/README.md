@@ -20,6 +20,18 @@
 
 - `RPC_URL` is your rpc node url. (For better performance it is advised to use your custom node, but the public ones are fine too.)
 
+- `NETWORK` the blockchain network the app is on (needs to be provided in WaaS supported format).
+
+### Tip
+To start a mongo db locally with docker use:
+```console
+docker run -d  --name mongo-on-docker  -p 27888:27017 -e MONGO_INITDB_ROOT_USERNAME=mongoadmin -e MONGO_INITDB_ROOT_PASSWORD=secret mongo
+```
+So the `MONGOURI` can be:
+```console
+MONGOURI="mongodb://mongoadmin:secret@localhost:27888/?authSource=admin"
+```
+
 2. Build the project
 ```console
 go build ./cmd/inter-server/
@@ -54,10 +66,10 @@ Request must have the following fields
 {
     "username": "username",
     "password": "mypassword",
-    "deviceId": "devices/5821af2a-579c-4052-9a0f-a114ab2564a6"
+    "registrationData": "eyJwYXJ0aWNpcGFudElkIjoiMjQ2MGIwNjMtZGQyNC00NmZiLTk0OWUtNDYzM2VhZGUzZDAwIiwicGFydGl0aW9uIjoiMiJ9"
 }
 ```
-To get the device id the `registerDevice()` function needs to be called first from the SDK.
+To get the registration data the `bootstrapDevice(passcode)` and `getRegistrationData()` function needs to be called first from the SDK.
 
 ### Login
 Request
@@ -106,36 +118,41 @@ Response
     }
 }
 ```
+### Save wallet
+Saves the new wallet for the user. This is required since the new wallet resource is received on the client side, but needs to be saved on the backend, so we have to send it manually.
+
+Request
+```json
+{
+    "wallet" : "pools/596a9e36-51a5-4e94-831c-0b11cfc8e1a7/wallets/f01fd9bb-e397-41d4-ab73-faeb54c8aad2"
+}
+```
+
+Response
+```json
+{
+    "saved" : true
+}
+```
 ### Create wallet
-Creates a new wallet for the user. The response contains the wallet resource name.
+This endpoint should be called when the user don't have a wallet at all along with the SDK where the polling and proccessing happens. The response contains the operation number, which can be used to poll and wait for the pending MPC Wallet.
 
 Response
 ```json
 {
-    "name": "pools/596a9e36-51a5-4e94-831c-0b11cfc8e1a7/wallets/f01fd9bb-e397-41d4-ab73-faeb54c8aad2",
-    ...
+    "walletOpName": "operations/56c618ba-33a8-4293-ae58-d5fcf8d2dcaf",
+    "mpcData": [],
+    "deviceGroup": "pools/596a9e36-51a5-4e94-831c-0b11cfc8e1a7/deviceGroups/60735a20-7ea5-4a8d-a6d6-4245cd993d7e"
 }
 ```
-
 ### Generate address
-Once the user has a wallet, the generate address endpoint should be used to create new addresses. The response contains the operation number which can be used to poll for the pending address.
+Once the user has a wallet, the generate address endpoint should be used to create new addresses.
 
 Response
 ```json
 {
-    "opName": "operations/776182e0-f774-46e7-82a5-754214949c96",
-    "done": false
-}
-```
-
-### Generate wallet and address
-This endpoint should be called when the user don't have a wallet at all along with the SDK where the polling and proccessing happens. The response contains the operation number, which can be used to poll and wait for the pending address. 
-
-Response
-```json
-{
-    "opName": "operations/56c618ba-33a8-4293-ae58-d5fcf8d2dcaf",
-    "done": false
+    "name": "networks/ethereum-goerli/addresses/0xb32Fb49e8591AE7565428cDe33Fc8d86766Ab85C",
+    ...
 }
 ```
 

@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 	"waas-example/inter-server/internal/configs"
@@ -54,16 +53,17 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	deviceGroup, err := services.CreateDeviceGroup(ctxWT, registerInput.DeviceId, poolModel.Name)
+	deviceName, err := services.RegisterDevice(ctxWT, registerInput.RegistrationData)
 
 	if err != nil {
-		log.Printf("error creating device group: %v", err)
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "error creating device group, check service logs"})
+		c.JSON(http.StatusInternalServerError,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
-	log.Printf("Succesfully created device group: %v", deviceGroup)
 
-	result, err := db.CreateUser(ctxWT, registerInput, hashedPassword, poolModel, deviceGroup.Name)
+	result, err := db.CreateUser(ctxWT, registerInput, hashedPassword, poolModel, deviceName)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError,
