@@ -153,6 +153,22 @@ func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, erro
 	return address, nil
 }
 
+func PollForPendingSignature(ctx context.Context, userId string) (*responses.TxSigningResponse, error) {
+	user, err := db.GetUserById(ctx, userId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	resultCh, errorCh := pollMPCOperations(ctx, 200, user.DeviceGroup)
+	select {
+	case mpcOp := <-resultCh:
+		return &responses.TxSigningResponse{SignatureOpName: mpcOp.GetName(), MpcData: mpcOp.GetMpcData()}, nil
+	case err := <-errorCh:
+		return nil, err
+	}
+}
+
 // not using waas lib but logically it fits here
 func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
 	client, err := node.NewClient(ctx, configs.RpcUrl())

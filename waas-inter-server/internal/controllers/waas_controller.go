@@ -146,3 +146,29 @@ func SaveWalletResource(c *gin.Context){
 
 	c.IndentedJSON(http.StatusOK, gin.H{"saved": walletSaved})
 }
+
+// GET /poll-pending-signature
+func PollPendingSignature(c *gin.Context) {
+	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+	defer cancel()
+
+	userId, err := utils.ExtractTokenID(c)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	mpcOp, err := services.PollForPendingSignature(ctxWT, userId)
+	if err != nil {
+		log.Printf("error polling signature op: %v", err)
+		c.JSON(http.StatusInternalServerError,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
+		return
+	}
+	log.Printf("Successfully polled MPC Operation: %v", mpcOp)
+
+	c.IndentedJSON(http.StatusOK, mpcOp)
+}

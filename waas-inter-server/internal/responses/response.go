@@ -10,3 +10,8 @@ type WalletGenerationResponse struct {
 	MpcData []byte `json:"mpcData"`
 	DeviceGroup  string `json:"deviceGroup"`
 }
+
+type TxSigningResponse struct {
+	SignatureOpName  string `json:"signatureOpName"`
+	MpcData []byte `json:"mpcData"`
+}
