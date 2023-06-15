@@ -111,9 +111,10 @@ func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerati
 	select {
 	case mpcOp := <-resultCh:
 		// start a go routine to wait for the MPCWallet in the background
-		ctxWT, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		ctxWT, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		go func() {
-			waitForWalletOp(ctxWT, *walletOp, userId)
+			_walletOp := *walletOp;
+			waitForWalletOp(ctxWT, _walletOp, userId)
 			defer cancel()
 		}()
 		// TODO remove WalletOpName
