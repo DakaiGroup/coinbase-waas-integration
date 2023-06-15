@@ -34,7 +34,6 @@ export interface IUserResponseDTO {
         displayName: string;
       };
       deviceId: string;
-      deviceGroup?: string;
       addresses?: { address: string }[];
       wallet?: string;
     };
@@ -42,7 +41,6 @@ export interface IUserResponseDTO {
 }
 
 export interface ICreateWalletResponseDTO {
-  deviceGroup: string;
   walletOpName: string;
   mpcData: string;
 }
@@ -61,4 +59,9 @@ export interface ISaveWalletRequestDTO {
 
 export interface ISaveWalletResponseDTO {
   saved: boolean;
+}
+
+export interface IPendingSignaturesResponseDTO {
+  signatureOpName: string;
+  mpcData: string[];
 }

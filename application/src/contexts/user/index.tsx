@@ -10,22 +10,11 @@ import type {
   IUserLoginResponseDTO,
   IUserLoginRequestDTO,
   IUserResponseDTO,
-  ISaveWalletRequestDTO,
-  ISaveWalletResponseDTO,
 } from '../../typings/DTOs';
 
 /* Data Things */
-import {
-  initMPCWalletService,
-  waitPendingMPCWallet,
-  computeMPCOperation,
-  getRegistrationData,
-  initMPCKeyService,
-  bootstrapDevice,
-  initMPCSdk,
-} from '@coinbase/waas-sdk-react-native';
+import { computeMPCOperation, getRegistrationData, bootstrapDevice, initMPCSdk } from '@coinbase/waas-sdk-react-native';
 import { generateAccountAddress, transformIUserResponseDTO } from './helper';
-import { API_KEY_NAME, API_PRIVATE_KEY } from '@env';
 import { api } from '../../utils';
 
 export interface IUserContext {
@@ -75,16 +64,45 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
     }
   }, [user]);
 
+  const onLongPollUser = useCallback(
+    async (attemptsTillNow: number = 0): Promise<IUserResponseDTO | string> => {
+      try {
+        if (attemptsTillNow === 20) {
+          throw new Error('Too many attempts for getting user');
+        }
+
+        if (user && user.token) {
+          const response = await api<IUserResponseDTO, any>({
+            method: 'GET',
+            path: 'protected/user/current',
+            token: user.token,
+            sleep: attemptsTillNow * 1000,
+          });
+
+          if (response.data.user.wallet) {
+            return Promise.resolve(response);
+          } else {
+            return await onLongPollUser(attemptsTillNow + 1);
+          }
+        } else {
+          throw new Error('Please login first');
+        }
+      } catch (error) {
+        console.error(error);
+        return Promise.reject(String(error?.message || error));
+      }
+    },
+    [user],
+  );
+
   const onCreateWallet = useCallback(async (): Promise<'ok' | string> => {
     try {
       if (user) {
         // Init WaaS services
         await initMPCSdk(true);
-        await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
-        await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
         // Initiate wallet creation on our server
-        const { walletOpName, mpcData, deviceGroup } = await api<ICreateWalletResponseDTO, any>({
+        const { mpcData } = await api<ICreateWalletResponseDTO, any>({
           method: 'POST',
           token: user.token,
           path: 'protected/waas/create-wallet',
@@ -92,17 +110,9 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
 
         await computeMPCOperation(mpcData);
 
-        const createdWallet = await waitPendingMPCWallet(walletOpName);
-
-        // Save the created wallet into our DB
-        await api<ISaveWalletResponseDTO, ISaveWalletRequestDTO>({
-          method: 'POST',
-          token: user.token,
-          body: { wallet: createdWallet.Name },
-          path: 'protected/waas/save-wallet',
-        });
-
-        setUser(prev => ({ ...prev, deviceGroup, wallet: createdWallet.Name }));
+        // Poll the current user for 2 mins
+        const response = await onLongPollUser();
+        setUser(transformIUserResponseDTO(response, user.token));
 
         // Create address for our freshly created wallet
         await onCreateAddress();
@@ -120,7 +130,6 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
   const onRegistration = useCallback(async (username: string, password: string): Promise<'ok' | string> => {
     try {
       await initMPCSdk(true);
-      await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
       await bootstrapDevice(password);
 
       const registrationData = await getRegistrationData();

@@ -3,24 +3,21 @@ import '@ethersproject/shims';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 /* Types */
-import type { IBroadcastTransactionResponseDTO } from '../../typings/DTOs';
+import type { IBroadcastTransactionResponseDTO, IPendingSignaturesResponseDTO } from '../../typings/DTOs';
 import type { AccountAddress, TokenOrCoin } from '../../typings';
 import type { Transaction } from '@coinbase/waas-sdk-react-native';
 
 /* Data Things */
 import {
-  pollForPendingSignatures,
   createSignatureFromTx,
   getSignedTransaction,
-  initMPCWalletService,
   waitPendingSignature,
   computeMPCOperation,
-  initMPCKeyService,
   getAddress,
   initMPCSdk,
 } from '@coinbase/waas-sdk-react-native';
-import { API_KEY_NAME, API_PRIVATE_KEY, RPC_URL, CHAIN_ID } from '@env';
 import { ABI, TOKEN_ADDRESSES } from '../../constants';
+import { RPC_URL, CHAIN_ID } from '@env';
 import { UserContext } from '../user';
 import { ethers } from 'ethers';
 import { api } from '../../utils';
@@ -51,8 +48,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
       try {
         if (user) {
           await initMPCSdk(true);
-          await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
-          await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
           const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
@@ -79,11 +74,15 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
           /* Transact */
           await createSignatureFromTx(keyName, transaction);
 
-          const pendingSignatures = await pollForPendingSignatures(user.deviceGroup);
+          const pendingSignatures = await api<IPendingSignaturesResponseDTO, any>({
+            path: 'protected/waas/poll-pending-signature',
+            method: 'GET',
+            token: user.token,
+          });
 
-          await computeMPCOperation(pendingSignatures[0]?.MPCData);
+          await computeMPCOperation(pendingSignatures.mpcData?.[0]);
 
-          const signatureResult = await waitPendingSignature(pendingSignatures[0]?.Operation);
+          const signatureResult = await waitPendingSignature(pendingSignatures.signatureOpName);
 
           const signedTransaction = await getSignedTransaction(transaction, signatureResult);
 
@@ -114,8 +113,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
         if (user) {
           if (token.address) {
             await initMPCSdk(true);
-            await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
-            await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
             const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
@@ -158,11 +155,15 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             /* Transact */
             await createSignatureFromTx(keyName, transaction);
 
-            const pendingSignatures = await pollForPendingSignatures(user.deviceGroup);
+            const pendingSignatures = await api<IPendingSignaturesResponseDTO, any>({
+              path: 'protected/waas/poll-pending-signature',
+              method: 'GET',
+              token: user.token,
+            });
 
-            await computeMPCOperation(pendingSignatures[0]?.MPCData);
+            await computeMPCOperation(pendingSignatures.mpcData?.[0]);
 
-            const signatureResult = await waitPendingSignature(pendingSignatures[0]?.Operation);
+            const signatureResult = await waitPendingSignature(pendingSignatures.signatureOpName);
 
             const signedTransaction = await getSignedTransaction(transaction, signatureResult);
 
@@ -192,8 +193,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
   const onGetAssets = useCallback(async (address: string) => {
     try {
       await initMPCSdk(true);
-      await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
-      await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
       const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 

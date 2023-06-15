@@ -11,7 +11,6 @@ export const generateAccountAddress = (rawAddress: string): AccountAddress => {
 
 export const transformIUserResponseDTO = (p: IUserResponseDTO, token: string): User => {
   return {
-    deviceGroup: p.data.user.deviceGroup,
     addresses: p.data.user.addresses?.map(x => generateAccountAddress(x.address)) ?? undefined,
     wallet: p.data.user.wallet ?? undefined,
     name: p.data.user.username,
