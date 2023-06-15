@@ -1,7 +1,13 @@
 import type { IAPIRejection, IAPIRequest } from '../typings';
 import { API_BASE } from '@env';
 
-export const api = async <T, Body>({ method, path, body, token }: IAPIRequest<Body>): Promise<T & IAPIRejection> => {
+export const api = async <T, Body>({
+  method,
+  path,
+  body,
+  token,
+  sleep,
+}: IAPIRequest<Body>): Promise<T & IAPIRejection> => {
   const headers = new Headers();
   headers.append('Accept', 'application/json');
   headers.append('Content-Type', 'application/json');
@@ -10,6 +16,10 @@ export const api = async <T, Body>({ method, path, body, token }: IAPIRequest<Bo
   }
 
   const requestInitParams: RequestInit = { method, headers, body: body ? JSON.stringify(body) : undefined };
+
+  if (sleep) {
+    await sleepFor(sleep);
+  }
 
   return fetch(`${API_BASE}/${path}`, requestInitParams)
     .then(
@@ -46,6 +56,8 @@ export const api = async <T, Body>({ method, path, body, token }: IAPIRequest<Bo
       });
     });
 };
+
+const sleepFor = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const getErrorMessage = (statusCode: number, message?: string) => {
   switch (statusCode) {
