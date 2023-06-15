@@ -115,6 +115,7 @@ func BroadcastTransaction(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"txHash": hash})
 }
 
+// TODO delete?
 // POST /save-wallet
 func SaveWalletResource(c *gin.Context){
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)

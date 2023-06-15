@@ -106,16 +106,17 @@ func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerati
 	if err != nil {
 		return nil, err
 	}
-	// start a go routine to wait for the MPCWallet in the background
-	ctxWT, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	go func() {
-		waitForWalletOp(ctxWT, walletOp, userId)
-		defer cancel()
-	}()
 
 	resultCh, errorCh := pollMPCOperations(ctx, 200, metadata.GetDeviceGroup())
 	select {
 	case mpcOp := <-resultCh:
+		// start a go routine to wait for the MPCWallet in the background
+		ctxWT, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		go func() {
+			waitForWalletOp(ctxWT, walletOp, userId)
+			defer cancel()
+		}()
+		// TODO remove WalletOpName
 		return &responses.WalletGenerationResponse{WalletOpName: walletOp.Name(), MpcData: mpcOp.GetMpcData(), DeviceGroup: metadata.GetDeviceGroup()}, nil
 	case err := <-errorCh:
 		return nil, err
@@ -186,6 +187,7 @@ func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
 	return client.SendRawTransaction(ctx, "0x"+rawTx)
 }
 
+// TODO remove if not needed
 func SaveWallet(ctx context.Context, userId string, walletId string) (bool, error) {
 	_, err := db.UpdateUserWalletById(ctx, userId, walletId)
 
