@@ -113,8 +113,7 @@ func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerati
 		// start a go routine to wait for the MPCWallet in the background
 		ctxWT, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		go func() {
-			_walletOp := *walletOp;
-			waitForWalletOp(ctxWT, _walletOp, userId)
+			waitForWalletOp(ctxWT, *walletOp, userId)
 			defer cancel()
 		}()
 		// TODO remove WalletOpName
@@ -263,6 +262,7 @@ func pollMPCOperations(ctx context.Context, pollInterval int64, deviceGroup stri
 func waitForWalletOp(ctx context.Context, walletOp v1clients.WrappedCreateMPCWalletOperation, userId string) (*wallets.MPCWallet, error) {
 	log.Println("Waiting for walletOp to complete...")
 	wallet, err := walletOp.Wait(ctx)
+	log.Println("WalletOp completed")
 	if err != nil {
 		log.Printf("error with waiting: %v", err)
 		return nil, err
