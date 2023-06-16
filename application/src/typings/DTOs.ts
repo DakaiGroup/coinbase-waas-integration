@@ -40,11 +40,6 @@ export interface IUserResponseDTO {
   };
 }
 
-export interface ICreateWalletResponseDTO {
-  walletOpName: string;
-  mpcData: string;
-}
-
 export interface ICreateAddressResponseDTO {
   name: string;
 }
@@ -61,7 +56,7 @@ export interface ISaveWalletResponseDTO {
   saved: boolean;
 }
 
-export interface IPendingSignaturesResponseDTO {
-  signatureOpName: string;
-  mpcData: string[];
+export interface IPendingMpcOperationDTO {
+  name: string;
+  mpc_data: string;
 }

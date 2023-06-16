@@ -8,13 +8,13 @@ import (
 	"time"
 	"waas-example/inter-server/internal/configs"
 	"waas-example/inter-server/internal/db"
-	"waas-example/inter-server/internal/responses"
 
 	"github.com/INFURA/go-ethlibs/node"
 	"github.com/coinbase/waas-client-library-go/auth"
 	"github.com/coinbase/waas-client-library-go/clients"
 	v1clients "github.com/coinbase/waas-client-library-go/clients/v1"
 	keys "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_keys/v1"
+	v1 "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_keys/v1"
 	wallets "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_wallets/v1"
 	pools "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/pools/v1"
 )
@@ -71,7 +71,7 @@ func RegisterDevice(ctx context.Context, registrationData string) (string, error
 	return device.GetName(), nil
 }
 
-func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerationResponse, error) {
+func CreateWallet(ctx context.Context, userId string) (*v1.MPCOperation, error) {
 
 	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
 
@@ -97,6 +97,12 @@ func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerati
 		return nil, err
 	}
 
+	_, err = db.UpdateUserWalletOpById(ctx, userId, walletOp.Name())
+	if err != nil {
+		log.Printf("error saving walletOp name: %v", err)
+		return nil, err
+	}
+
 	metadata, _ := walletOp.Metadata()
 	log.Printf("Succesfully CreateMPCWallet operation and the following deviceGroup: %v", metadata.GetDeviceGroup())
 
@@ -110,14 +116,7 @@ func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerati
 	resultCh, errorCh := pollMPCOperations(ctx, 200, metadata.GetDeviceGroup())
 	select {
 	case mpcOp := <-resultCh:
-		// start a go routine to wait for the MPCWallet in the background
-		ctxWT, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		go func() {
-			waitForWalletOp(ctxWT, *walletOp, userId)
-			defer cancel()
-		}()
-		// TODO remove WalletOpName
-		return &responses.WalletGenerationResponse{WalletOpName: walletOp.Name(), MpcData: mpcOp.GetMpcData(), DeviceGroup: metadata.GetDeviceGroup()}, nil
+		return mpcOp, nil
 	case err := <-errorCh:
 		return nil, err
 	}
@@ -161,7 +160,7 @@ func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, erro
 	return address, nil
 }
 
-func PollForPendingSignature(ctx context.Context, userId string) (*responses.TxSigningResponse, error) {
+func PollMpcOperation(ctx context.Context, userId string) (*v1.MPCOperation, error) {
 	user, err := db.GetUserById(ctx, userId)
 
 	if err != nil {
@@ -171,7 +170,7 @@ func PollForPendingSignature(ctx context.Context, userId string) (*responses.TxS
 	resultCh, errorCh := pollMPCOperations(ctx, 200, user.DeviceGroup)
 	select {
 	case mpcOp := <-resultCh:
-		return &responses.TxSigningResponse{SignatureOpName: mpcOp.GetName(), MpcData: mpcOp.GetMpcData()}, nil
+		return mpcOp, nil
 	case err := <-errorCh:
 		return nil, err
 	}
@@ -187,9 +186,30 @@ func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
 	return client.SendRawTransaction(ctx, "0x"+rawTx)
 }
 
-// TODO remove if not needed
-func SaveWallet(ctx context.Context, userId string, walletId string) (bool, error) {
-	_, err := db.UpdateUserWalletById(ctx, userId, walletId)
+func WaitWallet(ctx context.Context, userId string) (bool, error) {
+	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
+
+	if err != nil {
+		log.Fatalf("error instantiating WalletService client: %v", err)
+	}
+
+	user, err := db.GetUserById(ctx, userId)
+
+	if err != nil {
+		return false, err
+	}
+
+	// we saved the wallet operation in the create wallet call so we can use it here
+	resp := client.CreateMPCWalletOperation(user.WalletOp)
+
+	newWallet, err := resp.Wait(ctx)
+
+	if err != nil {
+		log.Printf("Cannot wait create mpc wallet response: %v", err)
+		return false, err
+	}
+
+	_, err = db.UpdateUserWalletById(ctx, userId, newWallet.Name)
 
 	if err != nil {
 		return false, err
@@ -257,23 +277,4 @@ func pollMPCOperations(ctx context.Context, pollInterval int64, deviceGroup stri
 	}(deviceGroup)
 
 	return resultCh, errorCh
-}
-
-func waitForWalletOp(ctx context.Context, walletOp v1clients.WrappedCreateMPCWalletOperation, userId string) (*wallets.MPCWallet, error) {
-	log.Println("Waiting for walletOp to complete...")
-	wallet, err := walletOp.Wait(ctx)
-	log.Println("WalletOp completed")
-	if err != nil {
-		log.Printf("error with waiting: %v", err)
-		return nil, err
-	}
-
-	_, err = db.UpdateUserWalletById(ctx, userId, wallet.GetName())
-	if err != nil {
-		log.Printf("error saving new wallet: %v", err)
-		return nil, err
-	}
-	log.Printf("generated wallet: %v", wallet.GetName())
-	log.Printf("Succesfully saved wallet for user with id: %v", userId)
-	return wallet, nil
 }

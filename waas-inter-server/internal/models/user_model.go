@@ -10,6 +10,7 @@ type User struct {
 	DeviceId    string             `json:"deviceId,omitempty" bson:"deviceId,omitempty"`
 	DeviceGroup string             `json:"deviceGroup,omitempty" bson:"deviceGroup,omitempty"`
 	Wallet      string             `json:"wallet,omitempty" bson:"wallet,omitempty"`
+	WalletOp    string             `json:"walletOp,omitempty" bson:"walletOp,omitempty"`
 	Addresses   []Address          `json:"addresses,omitempty" bson:"addresses,omitempty"`
 }
 

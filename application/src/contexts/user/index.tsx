@@ -5,15 +5,15 @@ import type { User } from '../../typings';
 import type {
   ICreateAddressResponseDTO,
   IUserRegisterResponseDTO,
-  ICreateWalletResponseDTO,
   IUserRegisterRequestDTO,
   IUserLoginResponseDTO,
   IUserLoginRequestDTO,
   IUserResponseDTO,
+  IPendingMpcOperationDTO,
 } from '../../typings/DTOs';
 
 /* Data Things */
-import { computeMPCOperation, getRegistrationData, bootstrapDevice, initMPCSdk } from '@coinbase/waas-sdk-react-native';
+import { computeMPCOperation, computePrepareDeviceArchiveMPCOperation ,getRegistrationData, bootstrapDevice, initMPCSdk } from '@coinbase/waas-sdk-react-native';
 import { generateAccountAddress, transformIUserResponseDTO } from './helper';
 import { api } from '../../utils';
 
@@ -102,22 +102,50 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
         await initMPCSdk(true);
 
         // Initiate wallet creation on our server
-        const { mpcData } = await api<ICreateWalletResponseDTO, any>({
+        const { mpc_data: mpcData } = await api<IPendingMpcOperationDTO, any>({
           method: 'POST',
           token: user.token,
           path: 'protected/waas/create-wallet',
         });
 
+        console.log(mpcData);
+        console.log("success");
+
         await computeMPCOperation(mpcData);
 
-        // Poll the current user for 2 mins
-        const response = await onLongPollUser();
-        setUser(transformIUserResponseDTO(response, user.token));
+        console.log("success2");
+        
+        const { mpc_data: archiveMpcData } = await api<IPendingMpcOperationDTO, any>({
+          method: 'GET',
+          token: user.token,
+          path: 'protected/waas/poll-mpc-operation',
+        });
 
-        // Create address for our freshly created wallet
-        await onCreateAddress();
+        console.log("success3");
 
-        return Promise.resolve('ok');
+        // TODO use the real passcode here
+        await computePrepareDeviceArchiveMPCOperation(archiveMpcData, "123456");
+
+        console.log("success4");
+
+        // first one is a boolean
+        const { success } = await api<any, any>({
+          method: 'GET',
+          token: user.token,
+          path: 'protected/waas/wait-wallet',
+        });
+
+        if(Boolean(success)){
+          await onCreateAddress();
+            // Poll the current user for 2 mins
+          const response = await onLongPollUser();
+          setUser(transformIUserResponseDTO(response, user.token));
+          // Create address for our freshly created wallet
+          return Promise.resolve('ok');
+        } else {
+          throw new Error('Unsuccessful waiting for wallet');
+        }
+        
       } else {
         throw new Error('Please login first');
       }

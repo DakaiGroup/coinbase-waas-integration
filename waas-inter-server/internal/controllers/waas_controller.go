@@ -115,41 +115,7 @@ func BroadcastTransaction(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"txHash": hash})
 }
 
-// TODO delete?
-// POST /save-wallet
-func SaveWalletResource(c *gin.Context){
-	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-	defer cancel()
-
-	var wallet requests.WalletResource
-
-	if err := c.BindJSON(&wallet); err != nil {
-		return
-	}
-
-	userId, err := utils.ExtractTokenID(c)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	walletSaved, err := services.SaveWallet(ctxWT, userId, wallet.Wallet)
-
-	if err != nil {
-		log.Printf("error saving wallet: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			responses.Response{
-				Message: "error",
-				Data:    map[string]interface{}{"error": err.Error()}})
-		return
-	}
-
-	c.IndentedJSON(http.StatusOK, gin.H{"saved": walletSaved})
-}
-
-// GET /poll-pending-signature
-func PollPendingSignature(c *gin.Context) {
+func WaitWallet(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
@@ -160,9 +126,36 @@ func PollPendingSignature(c *gin.Context) {
 		return
 	}
 
-	mpcOp, err := services.PollForPendingSignature(ctxWT, userId)
+	success, err := services.WaitWallet(ctxWT, userId)
 	if err != nil {
-		log.Printf("error polling signature op: %v", err)
+		log.Printf("error waiting for wallet: %v", err)
+		c.JSON(http.StatusInternalServerError,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
+		return
+	}
+	log.Printf("Successfully waited for wallet");
+
+	c.IndentedJSON(http.StatusOK, success)
+	
+}
+
+// GET /poll-mpc-operation
+func PollMpcOperation(c *gin.Context) {
+	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+	defer cancel()
+
+	userId, err := utils.ExtractTokenID(c)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	mpcOp, err := services.PollMpcOperation(ctxWT, userId)
+	if err != nil {
+		log.Printf("error polling mpc op: %v", err)
 		c.JSON(http.StatusInternalServerError,
 			responses.Response{
 				Message: "error",

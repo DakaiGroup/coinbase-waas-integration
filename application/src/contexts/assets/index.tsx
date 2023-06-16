@@ -3,7 +3,7 @@ import '@ethersproject/shims';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 /* Types */
-import type { IBroadcastTransactionResponseDTO, IPendingSignaturesResponseDTO } from '../../typings/DTOs';
+import type { IBroadcastTransactionResponseDTO, IPendingMpcOperationDTO } from '../../typings/DTOs';
 import type { AccountAddress, TokenOrCoin } from '../../typings';
 import type { Transaction } from '@coinbase/waas-sdk-react-native';
 
@@ -74,15 +74,15 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
           /* Transact */
           await createSignatureFromTx(keyName, transaction);
 
-          const pendingSignatures = await api<IPendingSignaturesResponseDTO, any>({
-            path: 'protected/waas/poll-pending-signature',
+          const pendingSignatures = await api<IPendingMpcOperationDTO, any>({
+            path: 'protected/waas/poll-mpc-operation',
             method: 'GET',
             token: user.token,
           });
 
-          await computeMPCOperation(pendingSignatures.mpcData?.[0]);
+          await computeMPCOperation(pendingSignatures.mpc_data);
 
-          const signatureResult = await waitPendingSignature(pendingSignatures.signatureOpName);
+          const signatureResult = await waitPendingSignature(pendingSignatures.name);
 
           const signedTransaction = await getSignedTransaction(transaction, signatureResult);
 
@@ -155,15 +155,15 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             /* Transact */
             await createSignatureFromTx(keyName, transaction);
 
-            const pendingSignatures = await api<IPendingSignaturesResponseDTO, any>({
-              path: 'protected/waas/poll-pending-signature',
+            const pendingSignatures = await api<IPendingMpcOperationDTO, any>({
+              path: 'protected/waas/poll-mpc-operation',
               method: 'GET',
               token: user.token,
             });
 
-            await computeMPCOperation(pendingSignatures.mpcData?.[0]);
+            await computeMPCOperation(pendingSignatures.mpc_data);
 
-            const signatureResult = await waitPendingSignature(pendingSignatures.signatureOpName);
+            const signatureResult = await waitPendingSignature(pendingSignatures.name);
 
             const signedTransaction = await getSignedTransaction(transaction, signatureResult);
 

@@ -721,10 +721,10 @@
     "@babel/helper-validator-identifier" "^7.19.1"
     to-fast-properties "^2.0.0"
 
-"@coinbase/waas-sdk-react-native@^0.1.6":
-  version "0.1.6"
-  resolved "https://registry.yarnpkg.com/@coinbase/waas-sdk-react-native/-/waas-sdk-react-native-0.1.6.tgz#476e8b153fc77905d23b622795f506e670f61803"
-  integrity sha512-YoktrSRGRyqL6MSrjB1GxIqVJUi9PmUxcKfa7tx87qvIx457+PkCvX2isc3V27VIGHe/ny7AjKCPuOc4N9ABEg==
+"@coinbase/waas-sdk-react-native@1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@coinbase/waas-sdk-react-native/-/waas-sdk-react-native-1.0.1.tgz#c8481f3e7df46cca899f49f715531e4bc07aec07"
+  integrity sha512-LvNHndsWodmuZTR1PcEYsrFNYaRHnjUjlBRvM7E5XS3bj2Nlm3uZXdUeCx0Rr4jbUBmXHoWtAfkIlFwi98up3A==
 
 "@egjs/hammerjs@^2.0.17":
   version "2.0.17"

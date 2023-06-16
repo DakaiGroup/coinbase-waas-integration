@@ -60,6 +60,18 @@ func UpdateUserWalletById(ctx context.Context, userId string, walletName string)
 	return userCollection.UpdateOne(ctx, filter, updateWallet)
 }
 
+func UpdateUserWalletOpById(ctx context.Context, userId string, walletOp string) (*mongo.UpdateResult, error) {
+	objId, _ := primitive.ObjectIDFromHex(userId)
+	filter := bson.D{{Key: "id", Value: objId}}
+
+	updateWalletOp := bson.D{{Key: "$set",
+		Value: bson.D{
+			{Key: "walletOp", Value: walletOp}},
+	}}
+
+	return userCollection.UpdateOne(ctx, filter, updateWalletOp)
+}
+
 func UpdateDeviceGroupById(ctx context.Context, userId string, deviceGroup string) (*mongo.UpdateResult, error) {
 	objId, _ := primitive.ObjectIDFromHex(userId)
 	filter := bson.D{{Key: "id", Value: objId}}
