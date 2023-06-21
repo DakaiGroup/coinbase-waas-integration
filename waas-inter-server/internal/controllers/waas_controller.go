@@ -137,7 +137,7 @@ func WaitWallet(c *gin.Context) {
 	}
 	log.Printf("Successfully waited for wallet");
 
-	c.IndentedJSON(http.StatusOK, success)
+	c.IndentedJSON(http.StatusOK, map[string]bool{"success": success})
 	
 }
 
