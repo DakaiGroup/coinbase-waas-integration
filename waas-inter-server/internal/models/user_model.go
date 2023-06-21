@@ -16,6 +16,7 @@ type User struct {
 
 type Address struct {
 	Address string `json:"address,omitempty" bson:"address,omitempty"`
+	Key     string `json:"key,omitempty" bson:"key,omitempty"`
 }
 
 type Pool struct {
