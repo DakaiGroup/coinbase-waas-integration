@@ -113,15 +113,18 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
         if (user) {
           if (token.address) {
             await initMPCSdk(true);
+            console.log(1);
 
             const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
             /* Get basic informations for transaction initiation */
+            console.log(from.rawAddress);
             const txCount = await provider.getTransactionCount(from.address);
             const gasInfo = await provider.getFeeData();
             const retrievedAddress = await getAddress(from.rawAddress);
             const keyName = retrievedAddress.MPCKeys[0];
 
+            console.log(2);
             /* Preapate the contract */
             const tokenContract = new ethers.Contract(token.address, ABI, provider);
 
@@ -133,6 +136,8 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
                 from: from.address,
               },
             );
+
+            console.log(3);
 
             /* Encode the parameters */
             const data = new ethers.utils.Interface(ABI).encodeFunctionData('transfer', [
@@ -152,8 +157,11 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               Data: data.substring(2),
             };
 
+            console.log(4);
             /* Transact */
             await createSignatureFromTx(keyName, transaction);
+
+            console.log(5);
 
             const pendingSignatures = await api<IPendingMpcOperationDTO, any>({
               path: 'protected/waas/poll-mpc-operation',
@@ -161,11 +169,18 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               token: user.token,
             });
 
+            console.log(6);
+
             await computeMPCOperation(pendingSignatures.mpc_data);
 
+            console.log(7);
             const signatureResult = await waitPendingSignature(pendingSignatures.name);
 
+            console.log(8);
+
             const signedTransaction = await getSignedTransaction(transaction, signatureResult);
+
+            console.log(19);
 
             const response = await api<IBroadcastTransactionResponseDTO, any>({
               path: 'protected/waas/broadcast-transaction',

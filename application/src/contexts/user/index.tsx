@@ -13,7 +13,13 @@ import type {
 } from '../../typings/DTOs';
 
 /* Data Things */
-import { computeMPCOperation, computePrepareDeviceArchiveMPCOperation ,getRegistrationData, bootstrapDevice, initMPCSdk } from '@coinbase/waas-sdk-react-native';
+import {
+  computePrepareDeviceArchiveMPCOperation,
+  computeMPCOperation,
+  getRegistrationData,
+  bootstrapDevice,
+  initMPCSdk,
+} from '@coinbase/waas-sdk-react-native';
 import { generateAccountAddress, transformIUserResponseDTO } from './helper';
 import { api } from '../../utils';
 
@@ -109,35 +115,37 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
         });
 
         console.log(mpcData);
-        console.log("success");
+        console.log('success');
 
         await computeMPCOperation(mpcData);
 
-        console.log("success2");
-        
+        console.log('success2');
+
         const { mpc_data: archiveMpcData } = await api<IPendingMpcOperationDTO, any>({
           method: 'GET',
           token: user.token,
           path: 'protected/waas/poll-mpc-operation',
         });
 
-        console.log("success3");
+        console.log('success3');
 
         // TODO use the real passcode here
-        await computePrepareDeviceArchiveMPCOperation(archiveMpcData, "123456");
+        await computePrepareDeviceArchiveMPCOperation(archiveMpcData, '123456');
 
-        console.log("success4");
+        console.log('success4');
 
         // first one is a boolean
-        const { success } = await api<any, any>({
+        const response = await api<any, any>({
           method: 'GET',
           token: user.token,
           path: 'protected/waas/wait-wallet',
         });
 
-        if(Boolean(success)){
+        console.log({ response });
+
+        if (response) {
           await onCreateAddress();
-            // Poll the current user for 2 mins
+          // Poll the current user for 2 mins
           const response = await onLongPollUser();
           setUser(transformIUserResponseDTO(response, user.token));
           // Create address for our freshly created wallet
@@ -145,7 +153,6 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
         } else {
           throw new Error('Unsuccessful waiting for wallet');
         }
-        
       } else {
         throw new Error('Please login first');
       }
