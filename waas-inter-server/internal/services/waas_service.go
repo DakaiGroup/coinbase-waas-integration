@@ -148,7 +148,7 @@ func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, erro
 		return nil, err
 	}
 
-	_, err = db.InsertNewUserAddressById(ctx, userId, address.GetName())
+	_, err = db.InsertNewUserAddressAndKeyById(ctx, userId, address.GetName(), address.MpcKeys[0])
 	if err != nil {
 		log.Printf("error saving new address: %v", err)
 		return nil, err

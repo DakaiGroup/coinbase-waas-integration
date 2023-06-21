@@ -84,12 +84,13 @@ func UpdateDeviceGroupById(ctx context.Context, userId string, deviceGroup strin
 	return userCollection.UpdateOne(ctx, filter, updateDeviceGroup)
 }
 
-func InsertNewUserAddressById(ctx context.Context, userId string, newAddress string) (*mongo.UpdateResult, error) {
+func InsertNewUserAddressAndKeyById(ctx context.Context, userId string, newAddress string, key string) (*mongo.UpdateResult, error) {
 	objId, _ := primitive.ObjectIDFromHex(userId)
 	filter := bson.D{{Key: "id", Value: objId}}
 
 	address := models.Address{
 		Address: newAddress,
+		Key: key,
 	}
 
 	change := bson.M{"$push": bson.M{"addresses": address}}
