@@ -3,7 +3,7 @@ import '@ethersproject/shims';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 /* Types */
-import type { IBroadcastTransactionResponseDTO, IPendingMpcOperationDTO } from '../../typings/DTOs';
+import type { IBroadcastTransactionResponseDTO, ICreateTransactionDTO, IPendingMpcOperationDTO } from '../../typings/DTOs';
 import type { AccountAddress, TokenOrCoin } from '../../typings';
 import type { Transaction } from '@coinbase/waas-sdk-react-native';
 
@@ -153,29 +153,43 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             };
 
             /* Transact */
-            await createSignatureFromTx(keyName, transaction);
 
-            const pendingSignatures = await api<IPendingMpcOperationDTO, any>({
-              path: 'protected/waas/poll-mpc-operation',
-              method: 'GET',
-              token: user.token,
-            });
-
-            await computeMPCOperation(pendingSignatures.mpc_data);
-
-            const signatureResult = await waitPendingSignature(pendingSignatures.name);
-
-            const signedTransaction = await getSignedTransaction(transaction, signatureResult);
-
-            const response = await api<IBroadcastTransactionResponseDTO, any>({
-              path: 'protected/waas/broadcast-transaction',
+            const {mpc_data, signatureOp} = await api<ICreateTransactionDTO, any>({
+              path: 'protected/waas/create-transaction',
               method: 'POST',
               token: user.token,
               body: {
-                rawTransaction: signedTransaction.RawTransaction,
-              },
+                transaction
+              }
             });
-            return Promise.resolve(response.txHash);
+
+            console.log(mpc_data)
+            console.log(signatureOp)
+
+            await computeMPCOperation(mpc_data);
+
+            console.log("FOS")
+
+            const {success} = await api<any, any>({
+              path: 'protected/waas/wait-signature-and-broadcast',
+              method: 'POST',
+              token: user.token,
+              body: {
+                sigOpname: signatureOp
+              }
+            });
+
+            console.log(success);
+
+            // const response = await api<IBroadcastTransactionResponseDTO, any>({
+            //   path: 'protected/waas/broadcast-transaction',
+            //   method: 'POST',
+            //   token: user.token,
+            //   body: {
+            //     rawTransaction: signedTransaction.RawTransaction,
+            //   },
+            // });
+            return Promise.resolve("lel");
           } else {
             throw new Error('You can not send native tokens with this method');
           }

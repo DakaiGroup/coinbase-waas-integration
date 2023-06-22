@@ -60,3 +60,8 @@ export interface IPendingMpcOperationDTO {
   name: string;
   mpc_data: string;
 }
+
+export interface ICreateTransactionDTO {
+  signatureOp: string;
+  mpc_data: string;
+}
