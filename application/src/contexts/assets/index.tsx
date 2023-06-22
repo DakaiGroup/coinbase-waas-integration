@@ -3,7 +3,11 @@ import '@ethersproject/shims';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 /* Types */
-import type { IBroadcastTransactionResponseDTO, ICreateTransactionDTO, IPendingMpcOperationDTO } from '../../typings/DTOs';
+import type {
+  IBroadcastTransactionResponseDTO,
+  ICreateTransactionDTO,
+  IPendingMpcOperationDTO,
+} from '../../typings/DTOs';
 import type { AccountAddress, TokenOrCoin } from '../../typings';
 import type { Transaction } from '@coinbase/waas-sdk-react-native';
 
@@ -152,44 +156,40 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               ethers.utils.parseUnits(amount, token.decimals),
             ]);
 
-            /* Prepare the transaction */
-            const transaction: Transaction = {
-              ChainID: CHAIN_ID,
-              Nonce: txCount,
-              MaxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
-              MaxFeePerGas: gasInfo.maxFeePerGas!.toHexString(),
-              Gas: estimation.toNumber(),
-              To: token.address,
-              Value: '0x0',
-              Data: data.substring(2),
-            };
-
             console.log(4);
             /* Transact */
 
-            const {mpc_data, signatureOp} = await api<ICreateTransactionDTO, any>({
+            const { mpc_data, signatureOp } = await api<ICreateTransactionDTO, any>({
               path: 'protected/waas/create-transaction',
               method: 'POST',
               token: user.token,
               body: {
-                transaction
-              }
+                chainID: CHAIN_ID,
+                nonce: txCount,
+                maxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
+                maxFeePerGas: gasInfo.maxFeePerGas!.toHexString(),
+                gas: estimation.toNumber(),
+                from: from.address,
+                to: token.address,
+                value: '0x0',
+                data: data.substring(2),
+              },
             });
 
-            console.log(mpc_data)
-            console.log(signatureOp)
+            console.log(mpc_data);
+            console.log(signatureOp);
 
             await computeMPCOperation(mpc_data);
 
-            console.log("FOS")
+            console.log('FOS');
 
-            const {success} = await api<any, any>({
+            const { success } = await api<any, any>({
               path: 'protected/waas/wait-signature-and-broadcast',
               method: 'POST',
               token: user.token,
               body: {
-                sigOpname: signatureOp
-              }
+                sigOpname: signatureOp,
+              },
             });
 
             console.log(success);
@@ -202,7 +202,7 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             //     rawTransaction: signedTransaction.RawTransaction,
             //   },
             // });
-            return Promise.resolve("lel");
+            return Promise.resolve('lel');
           } else {
             throw new Error('You can not send native tokens with this method');
           }

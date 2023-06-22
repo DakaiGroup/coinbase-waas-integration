@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"strings"
 
 	//"math"
 	//"math/big"
@@ -199,6 +198,11 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 		return nil, err
 	}
 
+	data, err := hex.DecodeString(transaction.Data)
+	if err != nil {
+		return nil, err
+	}
+
 	req := &protocols.ConstructTransactionRequest{
 		Network: configs.Network(),
 		Input: &v1types.TransactionInput{
@@ -209,10 +213,10 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 					MaxPriorityFeePerGas: transaction.MaxPriorityFeePerGas,
 					MaxFeePerGas:         transaction.MaxFeePerGas,
 					Gas:                  transaction.Gas,
-					FromAddress:          strings.Split(user.Addresses[0].Address, "/")[3],
+					FromAddress:          transaction.From,
 					ToAddress:            transaction.To,
 					Value:                transaction.Value,
-					Data:                 []byte(transaction.Data),
+					Data:                 data,
 				},
 			},
 		},
@@ -220,12 +224,15 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 
 	tx, err := client.ConstructTransaction(ctx, req)
 
+	fmt.Println("construced tx:")
+	fmt.Println(tx)
+
 	if err != nil {
 		log.Fatalf("error creating tx: %v", err)
 	}
 
 	sigReq := &keys.CreateSignatureRequest{
-		Parent: user.Addresses[0].Key,
+		Parent: user.Addresses[0].Key, // TODO use the correct key for the addy
 		Signature: &keys.Signature{
 			Payload: tx.GetRequiredSignatures()[0].GetPayload(),
 		},
@@ -252,69 +259,66 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 	}
 }
 
-// func CreateNativeTransaction(ctx context.Context, userId string) (*keys.MPCOperation, error){
-// 	client, err := v1clients.NewProtocolServiceClient(ctx, authOpt)
-// 	if err != nil {
-// 		log.Fatalf("error instantiating protocol service client: %v", err)
-// 	}
+func WaitSignatureAndBroadcast(ctx context.Context, opName string) (bool, error) {
+	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
 
-// 	user, err := db.GetUserById(ctx, userId)
+	if err != nil {
+		log.Fatalf("error instantiating KeyService client: %v", err)
+	}
 
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	// we saved the wallet operation in the create wallet call so we can use it here
+	resp := client.CreateSignatureOperation(opName)
 
-// 	sendAmount := big.NewInt(1 * int64(math.Pow(10, 18))).String()
+	signature, err := resp.Wait(ctx)
 
-// 	req := &protocols.ConstructTransferTransactionRequest{
-// 		Network:   "networks/ethereum-goerli",
-// 		Asset:     "networks/ethereum-goerli/assets/0c3569d3-b253-5128-a229-543e1e819430", // The resource name for the ETH Asset.
-// 		Sender:    user.Addresses[0].Address,
-// 		Recipient: "0x4ba6b8F1eBc3c14233F7917c721A64b2DA1b80C6", // whoever you want to send to
-// 		Amount:    sendAmount,
-// 		Nonce:     0,
-// 	}
+	fmt.Println("signature: ")
+	fmt.Println(signature)
 
-// 	tx, err := client.ConstructTransferTransaction(ctx, req)
+	if err != nil {
+		log.Printf("Cannot wait signature response: %v", err)
+		return false, err
+	}
 
-// 	if err != nil {
-// 		log.Fatalf("error creating tx: %v", err)
-// 	}
+	// rawTx := append(
+	// 	append(signature.GetSignature().GetEcdsaSignature().R,
+	// 		signature.GetSignature().GetEcdsaSignature().S...),
+	// 	byte(signature.GetSignature().GetEcdsaSignature().V))
 
-// 	// The transaction contains a transaction input that can be used in the request to
-// 	// CreateMPCTransaction.
-// 	input := &v1types.TransactionInput{
-// 		Input: &v1types.TransactionInput_EthereumRlpInput{
-// 			EthereumRlpInput: tx.Input.GetEthereumRlpInput(),
-// 		},
-// 	}
+	// log.Printf("rawTx: %v", rawTx)
 
-// 	mpcTxServiceClient, err := v1clients.NewMPCTransactionServiceClient(ctx, authOpt)
-// 	if err != nil {
-// 		log.Fatalf("error instantiating mpc transaction service client: %v", err)
-// 	}
+	// rawTxHex := hex.EncodeToString(rawTx)
 
-// 	req1 := &mpcTransactions.CreateMPCTransactionRequest{
-// 		Parent: user.Wallet,
-// 		MpcTransaction: &mpcTransactions.MPCTransaction{
-// 			Network:       "networks/ethereum-goerli",
-// 			FromAddresses: []string{user.Addresses[0].Address},
-// 		},
-// 		Input: input,
-// 	}
+	// log.Printf("rawTxHex: %v", rawTxHex)
 
-// 	op, err := mpcTxServiceClient.CreateMPCTransaction(ctx, req1)
+	broadcastReq := &protocols.BroadcastTransactionRequest{
+		Network: configs.Network(),
+		Transaction: &v1types.Transaction{
+			RequiredSignatures: []*v1types.RequiredSignature{
+				{
+					Signature: signature.Signature,
+				},
+			},
+		},
+	}
 
-// 	if err != nil {
-// 		log.Fatalf("error initiating mpc transaction creation: %v", err)
-// 	}
+	protoClient, err := v1clients.NewProtocolServiceClient(ctx, authOpt)
 
-// 	metadata, _ := op.Metadata()
+	if err != nil {
+		log.Fatalf("error instantiating Protocol client: %v", err)
+	}
 
-// 	deviceGroupName := metadata.GetDeviceGroup()
+	broadcastTx, err := protoClient.BroadcastTransaction(ctx, broadcastReq)
 
-// 	return nil, nil
-// }
+	if err != nil {
+		log.Printf("Cannot with broadcast: %v", err)
+		return false, err
+	}
+
+	log.Println(broadcastTx.Hash)
+	//BroadcastTransaction(ctx, rawTxHex);
+
+	return true, nil
+}
 
 // not using waas lib but logically it fits here
 func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
@@ -323,7 +327,15 @@ func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
 		log.Println(err)
 	}
 
-	return client.SendRawTransaction(ctx, "0x"+rawTx)
+	hash, err := client.SendRawTransaction(ctx, "0x"+rawTx)
+
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	log.Println(hash)
+	return hash, err
 }
 
 func WaitWallet(ctx context.Context, userId string) (bool, error) {
@@ -355,39 +367,6 @@ func WaitWallet(ctx context.Context, userId string) (bool, error) {
 		return false, err
 	}
 
-	return true, nil
-}
-
-func WaitSignatureAndBroadcast(ctx context.Context, opName string) (bool, error) {
-	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
-
-	if err != nil {
-		log.Fatalf("error instantiating KeyService client: %v", err)
-	}
-
-	// we saved the wallet operation in the create wallet call so we can use it here
-	resp := client.CreateSignatureOperation(opName)
-
-	signature, err := resp.Wait(ctx)
-
-	if err != nil {
-		log.Printf("Cannot wait signature response: %v", err)
-		return false, err
-	}
-
-	rawTx := append(
-		append(signature.GetSignature().GetEcdsaSignature().R,
-			signature.GetSignature().GetEcdsaSignature().S...),
-		byte(signature.GetSignature().GetEcdsaSignature().V))
-
-	log.Printf("rawTx: %v", rawTx)
-
-	rawTxHex := hex.EncodeToString(rawTx)
-
-	log.Printf("rawTxHex: %v", rawTxHex)
-
-	BroadcastTransaction(ctx, rawTxHex);
-	
 	return true, nil
 }
 

@@ -24,14 +24,15 @@ type WalletResource struct {
 }
 
 type Transaction struct {
-	ChainID              string `json:"ChainID"`
-	Nonce                uint64 `json:"Nonce"`
-	MaxPriorityFeePerGas string `json:"MaxPriorityFeePerGas"`
-	MaxFeePerGas         string `json:"MaxFeePerGas"`
-	Gas                  uint64 `json:"Gas"`
-	To                   string `json:"To"`
-	Value                string `json:"Value"`
-	Data                 string `json:"Data"`
+	ChainID              string `json:"chainID"`
+	Nonce                uint64 `json:"nonce"`
+	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`
+	MaxFeePerGas         string `json:"maxFeePerGas"`
+	Gas                  uint64 `json:"gas"`
+	From                 string `json:"from"`
+	To                   string `json:"to"`
+	Value                string `json:"value"`
+	Data                 string `json:"data"`
 }
 
 type SigOpName struct {

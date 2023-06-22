@@ -157,7 +157,7 @@ func CreateTransaction(c *gin.Context) {
 				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
-
+	log.Println("incomming TX:")
 	log.Println(transaction)
 
 	userId, err := utils.ExtractTokenID(c)
