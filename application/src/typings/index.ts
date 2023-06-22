@@ -45,4 +45,5 @@ export type TokenOrCoin = {
 export type AccountAddress = {
   rawAddress: string;
   address: string;
+  key: string;
 };

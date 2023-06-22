@@ -42,6 +42,7 @@ export interface IUserResponseDTO {
 
 export interface ICreateAddressResponseDTO {
   name: string;
+  mpc_keys: string[];
 }
 
 export interface IBroadcastTransactionResponseDTO {

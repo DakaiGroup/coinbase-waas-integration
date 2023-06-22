@@ -43,17 +43,19 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
   /* States */
   const [user, setUser] = useState<User | null>(null);
 
+  console.log({ user });
+
   const onCreateAddress = useCallback(async (): Promise<'ok' | string> => {
     try {
       if (user) {
         // Initiate address creation on our server
-        const { name } = await api<ICreateAddressResponseDTO, any>({
+        const { name, mpc_keys } = await api<ICreateAddressResponseDTO, any>({
           method: 'POST',
           token: user.token,
           path: 'protected/waas/generate-address',
         });
 
-        const newAddress = generateAccountAddress(name);
+        const newAddress = generateAccountAddress(name, mpc_keys[0]);
 
         setUser(prev => ({
           ...prev!,
@@ -84,6 +86,8 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
             token: user.token,
             sleep: attemptsTillNow * 1000,
           });
+
+          console.log({ addresses: response.data.user.addresses });
 
           if (response.data.user.wallet) {
             return Promise.resolve(response);
@@ -147,6 +151,7 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
           await onCreateAddress();
           // Poll the current user for 2 mins
           const response = await onLongPollUser();
+
           setUser(transformIUserResponseDTO(response, user.token));
           // Create address for our freshly created wallet
           return Promise.resolve('ok');
@@ -195,6 +200,8 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
         path: 'protected/user/current',
         token,
       });
+
+      console.log({ addresses: response.data.user.addresses });
 
       setUser(transformIUserResponseDTO(response, token));
 
