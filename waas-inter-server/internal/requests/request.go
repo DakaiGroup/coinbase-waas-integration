@@ -35,6 +35,15 @@ type Transaction struct {
 	Data                 string `json:"data"`
 }
 
-type SigOpName struct {
-	SigOpName string `json:"sigOpname"`
+type SigOpNameAndTx struct {
+	SigOpName            string `json:"sigOpname"`
+	ChainID              string `json:"chainID"`
+	Nonce                uint64 `json:"nonce"`
+	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`
+	MaxFeePerGas         string `json:"maxFeePerGas"`
+	Gas                  uint64 `json:"gas"`
+	From                 string `json:"from"`
+	To                   string `json:"to"`
+	Value                string `json:"value"`
+	Data                 string `json:"data"`
 }

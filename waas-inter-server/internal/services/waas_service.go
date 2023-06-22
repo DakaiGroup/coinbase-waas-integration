@@ -259,7 +259,7 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 	}
 }
 
-func WaitSignatureAndBroadcast(ctx context.Context, opName string) (bool, error) {
+func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.SigOpNameAndTx) (bool, error) {
 	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
 
 	if err != nil {
@@ -267,7 +267,7 @@ func WaitSignatureAndBroadcast(ctx context.Context, opName string) (bool, error)
 	}
 
 	// we saved the wallet operation in the create wallet call so we can use it here
-	resp := client.CreateSignatureOperation(opName)
+	resp := client.CreateSignatureOperation(sigOpAndTx.SigOpName)
 
 	signature, err := resp.Wait(ctx)
 
@@ -290,9 +290,29 @@ func WaitSignatureAndBroadcast(ctx context.Context, opName string) (bool, error)
 
 	// log.Printf("rawTxHex: %v", rawTxHex)
 
+	data, err := hex.DecodeString(sigOpAndTx.Data)
+	if err != nil {
+		return false, err
+	}
+
 	broadcastReq := &protocols.BroadcastTransactionRequest{
 		Network: configs.Network(),
 		Transaction: &v1types.Transaction{
+			Input: &v1types.TransactionInput{
+				Input: &v1types.TransactionInput_Ethereum_1559Input{
+					Ethereum_1559Input: &inputs.EIP1559TransactionInput{
+						ChainId:              sigOpAndTx.ChainID,
+						Nonce:                sigOpAndTx.Nonce,
+						MaxPriorityFeePerGas: sigOpAndTx.MaxPriorityFeePerGas,
+						MaxFeePerGas:         sigOpAndTx.MaxFeePerGas,
+						Gas:                  sigOpAndTx.Gas,
+						FromAddress:          sigOpAndTx.From,
+						ToAddress:            sigOpAndTx.To,
+						Value:                sigOpAndTx.Value,
+						Data:                 data,
+					},
+				},
+			},
 			RequiredSignatures: []*v1types.RequiredSignature{
 				{
 					Signature: signature.Signature,
@@ -310,7 +330,6 @@ func WaitSignatureAndBroadcast(ctx context.Context, opName string) (bool, error)
 	broadcastTx, err := protoClient.BroadcastTransaction(ctx, broadcastReq)
 
 	if err != nil {
-		log.Printf("Cannot with broadcast: %v", err)
 		return false, err
 	}
 

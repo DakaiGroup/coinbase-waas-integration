@@ -126,7 +126,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
         if (user) {
           if (token.address) {
             await initMPCSdk(true);
-            console.log(1);
 
             const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
@@ -135,7 +134,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             const txCount = await provider.getTransactionCount(from.address);
             const gasInfo = await provider.getFeeData();
 
-            console.log(2);
             /* Preapate the contract */
             const tokenContract = new ethers.Contract(token.address, ABI, provider);
 
@@ -148,15 +146,12 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               },
             );
 
-            console.log(3);
-
             /* Encode the parameters */
             const data = new ethers.utils.Interface(ABI).encodeFunctionData('transfer', [
               to,
               ethers.utils.parseUnits(amount, token.decimals),
             ]);
 
-            console.log(4);
             /* Transact */
 
             const { mpc_data, signatureOp } = await api<ICreateTransactionDTO, any>({
@@ -176,12 +171,7 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               },
             });
 
-            console.log(mpc_data);
-            console.log(signatureOp);
-
             await computeMPCOperation(mpc_data);
-
-            console.log('FOS');
 
             const { success } = await api<any, any>({
               path: 'protected/waas/wait-signature-and-broadcast',
@@ -189,19 +179,17 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               token: user.token,
               body: {
                 sigOpname: signatureOp,
+                chainID: CHAIN_ID,
+                nonce: txCount,
+                maxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
+                maxFeePerGas: gasInfo.maxFeePerGas!.toHexString(),
+                gas: estimation.toNumber(),
+                from: from.address,
+                to: token.address,
+                value: '0x0',
+                data: data.substring(2),
               },
             });
-
-            console.log(success);
-
-            // const response = await api<IBroadcastTransactionResponseDTO, any>({
-            //   path: 'protected/waas/broadcast-transaction',
-            //   method: 'POST',
-            //   token: user.token,
-            //   body: {
-            //     rawTransaction: signedTransaction.RawTransaction,
-            //   },
-            // });
             return Promise.resolve('lel');
           } else {
             throw new Error('You can not send native tokens with this method');

@@ -186,10 +186,10 @@ func WaitSignatureAndBroadcast(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
-	var opName requests.SigOpName
+	var sigOpAndtx requests.SigOpNameAndTx
 
 	//validate the request body
-	if err := c.BindJSON(&opName); err != nil {
+	if err := c.BindJSON(&sigOpAndtx); err != nil {
 		c.JSON(http.StatusBadRequest,
 			responses.Response{
 				Message: "error",
@@ -197,7 +197,7 @@ func WaitSignatureAndBroadcast(c *gin.Context) {
 		return
 	}
 
-	success, err := services.WaitSignatureAndBroadcast(ctxWT, opName.SigOpName)
+	success, err := services.WaitSignatureAndBroadcast(ctxWT, sigOpAndtx)
 	if err != nil {
 		log.Printf("error waiting for signature and broadcast: %v", err)
 		c.JSON(http.StatusInternalServerError,
