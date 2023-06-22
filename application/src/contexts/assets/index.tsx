@@ -113,15 +113,18 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
         if (user) {
           if (token.address) {
             await initMPCSdk(true);
+            console.log(1);
 
             const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
             /* Get basic informations for transaction initiation */
+            console.log(from.rawAddress);
             const txCount = await provider.getTransactionCount(from.address);
             const gasInfo = await provider.getFeeData();
             const retrievedAddress = await getAddress(from.rawAddress);
             const keyName = retrievedAddress.MPCKeys[0];
 
+            console.log(2);
             /* Preapate the contract */
             const tokenContract = new ethers.Contract(token.address, ABI, provider);
 
@@ -133,6 +136,8 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
                 from: from.address,
               },
             );
+
+            console.log(3);
 
             /* Encode the parameters */
             const data = new ethers.utils.Interface(ABI).encodeFunctionData('transfer', [
@@ -152,6 +157,7 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               Data: data.substring(2),
             };
 
+            console.log(4);
             /* Transact */
 
             const {mpc_data, signatureOp} = await api<ICreateTransactionDTO, any>({

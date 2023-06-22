@@ -34,7 +34,7 @@ export interface IUserResponseDTO {
         displayName: string;
       };
       deviceId: string;
-      addresses?: { address: string }[];
+      addresses?: { address: string; key: string }[];
       wallet?: string;
     };
   };
