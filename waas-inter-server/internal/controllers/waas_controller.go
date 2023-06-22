@@ -91,30 +91,6 @@ func GenerateAddress(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, addressResp)
 }
 
-// POST /broadcast-transaction
-func BroadcastTransaction(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var rawTx requests.RawTx
-
-	if err := c.BindJSON(&rawTx); err != nil {
-		return
-	}
-
-	hash, err := services.BroadcastTransaction(ctx, rawTx.RawTransaction)
-	if err != nil {
-		log.Printf("error BroadcastTransaction: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			responses.Response{
-				Message: "error",
-				Data:    map[string]interface{}{"error": err.Error()}})
-		return
-	}
-
-	log.Printf("tx sent: %s", hash)
-	c.IndentedJSON(http.StatusOK, gin.H{"txHash": hash})
-}
-
 // GET /waas/wait-wallet
 func WaitWallet(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
@@ -139,7 +115,6 @@ func WaitWallet(c *gin.Context) {
 	log.Printf("Successfully waited for wallet");
 
 	c.IndentedJSON(http.StatusOK, map[string]bool{"success": success})
-	
 }
 
 // POST /waas/create-transaction
@@ -197,7 +172,7 @@ func WaitSignatureAndBroadcast(c *gin.Context) {
 		return
 	}
 
-	success, err := services.WaitSignatureAndBroadcast(ctxWT, sigOpAndtx)
+	hash, err := services.WaitSignatureAndBroadcast(ctxWT, sigOpAndtx)
 	if err != nil {
 		log.Printf("error waiting for signature and broadcast: %v", err)
 		c.JSON(http.StatusInternalServerError,
@@ -206,10 +181,8 @@ func WaitSignatureAndBroadcast(c *gin.Context) {
 				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
-	log.Printf("Successfully broadcasted");
 
-	c.IndentedJSON(http.StatusOK, map[string]bool{"success": success})
-	
+	c.IndentedJSON(http.StatusOK, gin.H{"txHash": hash})
 }
 
 // GET /poll-mpc-operation

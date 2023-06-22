@@ -20,7 +20,6 @@ func UserRoute(router *gin.Engine) {
 	protected.GET("/user/current", controllers.CurrentUser)
 	protected.POST("/waas/create-wallet", controllers.CreateWallet)
 	protected.POST("/waas/generate-address", controllers.GenerateAddress)
-	protected.POST("/waas/broadcast-transaction", controllers.BroadcastTransaction)
 	protected.GET("/waas/wait-wallet", controllers.WaitWallet)
 	protected.GET("/waas/poll-mpc-operation", controllers.PollMpcOperation)
 	protected.POST("/waas/create-transaction", controllers.CreateTransaction)

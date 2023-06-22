@@ -15,7 +15,6 @@ import (
 	"waas-example/inter-server/internal/requests"
 	"waas-example/inter-server/internal/responses"
 
-	"github.com/INFURA/go-ethlibs/node"
 	"github.com/coinbase/waas-client-library-go/auth"
 	"github.com/coinbase/waas-client-library-go/clients"
 	v1clients "github.com/coinbase/waas-client-library-go/clients/v1"
@@ -259,7 +258,7 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 	}
 }
 
-func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.SigOpNameAndTx) (bool, error) {
+func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.SigOpNameAndTx) (string, error) {
 	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
 
 	if err != nil {
@@ -276,23 +275,12 @@ func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.SigOpNam
 
 	if err != nil {
 		log.Printf("Cannot wait signature response: %v", err)
-		return false, err
+		return "", err
 	}
-
-	// rawTx := append(
-	// 	append(signature.GetSignature().GetEcdsaSignature().R,
-	// 		signature.GetSignature().GetEcdsaSignature().S...),
-	// 	byte(signature.GetSignature().GetEcdsaSignature().V))
-
-	// log.Printf("rawTx: %v", rawTx)
-
-	// rawTxHex := hex.EncodeToString(rawTx)
-
-	// log.Printf("rawTxHex: %v", rawTxHex)
 
 	data, err := hex.DecodeString(sigOpAndTx.Data)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	broadcastReq := &protocols.BroadcastTransactionRequest{
@@ -330,31 +318,12 @@ func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.SigOpNam
 	broadcastTx, err := protoClient.BroadcastTransaction(ctx, broadcastReq)
 
 	if err != nil {
-		return false, err
-	}
-
-	log.Println(broadcastTx.Hash)
-	//BroadcastTransaction(ctx, rawTxHex);
-
-	return true, nil
-}
-
-// not using waas lib but logically it fits here
-func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
-	client, err := node.NewClient(ctx, configs.RpcUrl())
-	if err != nil {
-		log.Println(err)
-	}
-
-	hash, err := client.SendRawTransaction(ctx, "0x"+rawTx)
-
-	if err != nil {
-		log.Println(err)
 		return "", err
 	}
 
-	log.Println(hash)
-	return hash, err
+	fmt.Printf("Transaction broadcasted: %v", broadcastTx.Hash)
+
+	return broadcastTx.Hash, nil
 }
 
 func WaitWallet(ctx context.Context, userId string) (bool, error) {
