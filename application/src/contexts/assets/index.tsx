@@ -55,10 +55,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
           const txCount = await provider.getTransactionCount(from.address);
           const gasInfo = await provider.getFeeData();
 
-          const retrievedAddress = await getAddress(from.rawAddress);
-
-          const keyName = retrievedAddress.MPCKeys[0];
-
           /* Prepare the transaction */
           const transaction: Transaction = {
             ChainID: CHAIN_ID,
@@ -71,8 +67,11 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             Data: '',
           };
 
+          console.log(1);
           /* Transact */
-          await createSignatureFromTx(keyName, transaction);
+          await createSignatureFromTx(from.key, transaction);
+
+          console.log(2);
 
           const pendingSignatures = await api<IPendingMpcOperationDTO, any>({
             path: 'protected/waas/poll-mpc-operation',
@@ -80,11 +79,19 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             token: user.token,
           });
 
+          console.log(3);
+
           await computeMPCOperation(pendingSignatures.mpc_data);
+
+          console.log(4);
 
           const signatureResult = await waitPendingSignature(pendingSignatures.name);
 
+          console.log(5);
+
           const signedTransaction = await getSignedTransaction(transaction, signatureResult);
+
+          console.log(6);
 
           const response = await api<IBroadcastTransactionResponseDTO, any>({
             path: 'protected/waas/broadcast-transaction',
@@ -94,6 +101,8 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               rawTransaction: signedTransaction.RawTransaction,
             },
           });
+
+          console.log(7);
 
           return Promise.resolve(response.txHash);
         } else {
@@ -121,8 +130,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             console.log(from.rawAddress);
             const txCount = await provider.getTransactionCount(from.address);
             const gasInfo = await provider.getFeeData();
-            const retrievedAddress = await getAddress(from.rawAddress);
-            const keyName = retrievedAddress.MPCKeys[0];
 
             console.log(2);
             /* Preapate the contract */
