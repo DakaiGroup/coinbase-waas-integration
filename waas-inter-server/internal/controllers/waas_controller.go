@@ -115,6 +115,7 @@ func BroadcastTransaction(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"txHash": hash})
 }
 
+// GET /waas/wait-wallet
 func WaitWallet(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
@@ -136,6 +137,76 @@ func WaitWallet(c *gin.Context) {
 		return
 	}
 	log.Printf("Successfully waited for wallet");
+
+	c.IndentedJSON(http.StatusOK, map[string]bool{"success": success})
+	
+}
+
+// POST /waas/create-transaction
+func CreateTransaction(c *gin.Context) {
+	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+	defer cancel()
+
+	var transaction requests.Transaction
+
+	//validate the request body
+	if err := c.BindJSON(&transaction); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
+		return
+	}
+
+	log.Println(transaction)
+
+	userId, err := utils.ExtractTokenID(c)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	creatTxResp, err := services.CreateTransaction(ctxWT, userId, transaction)
+	if err != nil {
+		log.Printf("error with create transaction: %v", err)
+		c.JSON(http.StatusInternalServerError,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
+		return
+	}
+	log.Printf("Successfully created transaction operation");
+
+	c.IndentedJSON(http.StatusOK, creatTxResp)
+}
+
+// POST /waas/wait-signature-and-broadcast
+func WaitSignatureAndBroadcast(c *gin.Context) {
+	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+	defer cancel()
+
+	var opName requests.SigOpName
+
+	//validate the request body
+	if err := c.BindJSON(&opName); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
+		return
+	}
+
+	success, err := services.WaitSignatureAndBroadcast(ctxWT, opName.SigOpName)
+	if err != nil {
+		log.Printf("error waiting for signature and broadcast: %v", err)
+		c.JSON(http.StatusInternalServerError,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
+		return
+	}
+	log.Printf("Successfully broadcasted");
 
 	c.IndentedJSON(http.StatusOK, map[string]bool{"success": success})
 	

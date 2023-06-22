@@ -23,4 +23,6 @@ func UserRoute(router *gin.Engine) {
 	protected.POST("/waas/broadcast-transaction", controllers.BroadcastTransaction)
 	protected.GET("/waas/wait-wallet", controllers.WaitWallet)
 	protected.GET("/waas/poll-mpc-operation", controllers.PollMpcOperation)
+	protected.POST("/waas/create-transaction", controllers.CreateTransaction)
+	protected.POST("/waas/wait-signature-and-broadcast", controllers.WaitSignatureAndBroadcast)
 }

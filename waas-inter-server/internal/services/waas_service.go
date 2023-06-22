@@ -2,21 +2,32 @@ package services
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
+
+	//"math"
+	//"math/big"
 	"net/http"
 	"time"
 	"waas-example/inter-server/internal/configs"
 	"waas-example/inter-server/internal/db"
+	"waas-example/inter-server/internal/requests"
+	"waas-example/inter-server/internal/responses"
 
 	"github.com/INFURA/go-ethlibs/node"
 	"github.com/coinbase/waas-client-library-go/auth"
 	"github.com/coinbase/waas-client-library-go/clients"
 	v1clients "github.com/coinbase/waas-client-library-go/clients/v1"
 	keys "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_keys/v1"
-	v1 "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_keys/v1"
+
+	//mpcTransactions "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_transactions/v1"
 	wallets "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_wallets/v1"
 	pools "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/pools/v1"
+	inputs "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/protocols/ethereum/v1"
+	protocols "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/protocols/v1"
+	v1types "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/types/v1"
 )
 
 var authOpt = clients.WithAPIKey(&auth.APIKey{
@@ -71,7 +82,7 @@ func RegisterDevice(ctx context.Context, registrationData string) (string, error
 	return device.GetName(), nil
 }
 
-func CreateWallet(ctx context.Context, userId string) (*v1.MPCOperation, error) {
+func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error) {
 
 	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
 
@@ -160,7 +171,7 @@ func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, erro
 	return address, nil
 }
 
-func PollMpcOperation(ctx context.Context, userId string) (*v1.MPCOperation, error) {
+func PollMpcOperation(ctx context.Context, userId string) (*keys.MPCOperation, error) {
 	user, err := db.GetUserById(ctx, userId)
 
 	if err != nil {
@@ -175,6 +186,135 @@ func PollMpcOperation(ctx context.Context, userId string) (*v1.MPCOperation, err
 		return nil, err
 	}
 }
+
+func CreateTransaction(ctx context.Context, userId string, transaction requests.Transaction) (*responses.CreateTxSignatureResponse, error) {
+	client, err := v1clients.NewProtocolServiceClient(ctx, authOpt)
+	if err != nil {
+		log.Fatalf("error instantiating protocol service client: %v", err)
+	}
+
+	user, err := db.GetUserById(ctx, userId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req := &protocols.ConstructTransactionRequest{
+		Network: configs.Network(),
+		Input: &v1types.TransactionInput{
+			Input: &v1types.TransactionInput_Ethereum_1559Input{
+				Ethereum_1559Input: &inputs.EIP1559TransactionInput{
+					ChainId:              transaction.ChainID,
+					Nonce:                transaction.Nonce,
+					MaxPriorityFeePerGas: transaction.MaxPriorityFeePerGas,
+					MaxFeePerGas:         transaction.MaxFeePerGas,
+					Gas:                  transaction.Gas,
+					FromAddress:          strings.Split(user.Addresses[0].Address, "/")[3],
+					ToAddress:            transaction.To,
+					Value:                transaction.Value,
+					Data:                 []byte(transaction.Data),
+				},
+			},
+		},
+	}
+
+	tx, err := client.ConstructTransaction(ctx, req)
+
+	if err != nil {
+		log.Fatalf("error creating tx: %v", err)
+	}
+
+	sigReq := &keys.CreateSignatureRequest{
+		Parent: user.Addresses[0].Key,
+		Signature: &keys.Signature{
+			Payload: tx.GetRequiredSignatures()[0].GetPayload(),
+		},
+	}
+
+	keyClient, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
+
+	if err != nil {
+		log.Fatalf("error instantiating KeyService client: %v", err)
+	}
+
+	sigOp, err := keyClient.CreateSignature(ctx, sigReq)
+
+	if err != nil {
+		return nil, err
+	}
+
+	resultCh, errorCh := pollMPCOperations(ctx, 200, user.DeviceGroup)
+	select {
+	case mpcOp := <-resultCh:
+		return &responses.CreateTxSignatureResponse{MpcData: mpcOp.GetMpcData(), SignatureOpName: sigOp.Name()}, nil
+	case err := <-errorCh:
+		return nil, err
+	}
+}
+
+// func CreateNativeTransaction(ctx context.Context, userId string) (*keys.MPCOperation, error){
+// 	client, err := v1clients.NewProtocolServiceClient(ctx, authOpt)
+// 	if err != nil {
+// 		log.Fatalf("error instantiating protocol service client: %v", err)
+// 	}
+
+// 	user, err := db.GetUserById(ctx, userId)
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	sendAmount := big.NewInt(1 * int64(math.Pow(10, 18))).String()
+
+// 	req := &protocols.ConstructTransferTransactionRequest{
+// 		Network:   "networks/ethereum-goerli",
+// 		Asset:     "networks/ethereum-goerli/assets/0c3569d3-b253-5128-a229-543e1e819430", // The resource name for the ETH Asset.
+// 		Sender:    user.Addresses[0].Address,
+// 		Recipient: "0x4ba6b8F1eBc3c14233F7917c721A64b2DA1b80C6", // whoever you want to send to
+// 		Amount:    sendAmount,
+// 		Nonce:     0,
+// 	}
+
+// 	tx, err := client.ConstructTransferTransaction(ctx, req)
+
+// 	if err != nil {
+// 		log.Fatalf("error creating tx: %v", err)
+// 	}
+
+// 	// The transaction contains a transaction input that can be used in the request to
+// 	// CreateMPCTransaction.
+// 	input := &v1types.TransactionInput{
+// 		Input: &v1types.TransactionInput_EthereumRlpInput{
+// 			EthereumRlpInput: tx.Input.GetEthereumRlpInput(),
+// 		},
+// 	}
+
+// 	mpcTxServiceClient, err := v1clients.NewMPCTransactionServiceClient(ctx, authOpt)
+// 	if err != nil {
+// 		log.Fatalf("error instantiating mpc transaction service client: %v", err)
+// 	}
+
+// 	req1 := &mpcTransactions.CreateMPCTransactionRequest{
+// 		Parent: user.Wallet,
+// 		MpcTransaction: &mpcTransactions.MPCTransaction{
+// 			Network:       "networks/ethereum-goerli",
+// 			FromAddresses: []string{user.Addresses[0].Address},
+// 		},
+// 		Input: input,
+// 	}
+
+// 	op, err := mpcTxServiceClient.CreateMPCTransaction(ctx, req1)
+
+// 	if err != nil {
+// 		log.Fatalf("error initiating mpc transaction creation: %v", err)
+// 	}
+
+// 	metadata, _ := op.Metadata()
+
+// 	deviceGroupName := metadata.GetDeviceGroup()
+
+// 	return nil, nil
+// }
 
 // not using waas lib but logically it fits here
 func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
@@ -215,6 +355,39 @@ func WaitWallet(ctx context.Context, userId string) (bool, error) {
 		return false, err
 	}
 
+	return true, nil
+}
+
+func WaitSignatureAndBroadcast(ctx context.Context, opName string) (bool, error) {
+	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
+
+	if err != nil {
+		log.Fatalf("error instantiating KeyService client: %v", err)
+	}
+
+	// we saved the wallet operation in the create wallet call so we can use it here
+	resp := client.CreateSignatureOperation(opName)
+
+	signature, err := resp.Wait(ctx)
+
+	if err != nil {
+		log.Printf("Cannot wait signature response: %v", err)
+		return false, err
+	}
+
+	rawTx := append(
+		append(signature.GetSignature().GetEcdsaSignature().R,
+			signature.GetSignature().GetEcdsaSignature().S...),
+		byte(signature.GetSignature().GetEcdsaSignature().V))
+
+	log.Printf("rawTx: %v", rawTx)
+
+	rawTxHex := hex.EncodeToString(rawTx)
+
+	log.Printf("rawTxHex: %v", rawTxHex)
+
+	BroadcastTransaction(ctx, rawTxHex);
+	
 	return true, nil
 }
 
