@@ -122,7 +122,7 @@ func CreateTransaction(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
-	var transaction requests.Transaction
+	var transaction requests.TransactionWithSigOpNameAndKey
 
 	//validate the request body
 	if err := c.BindJSON(&transaction); err != nil {
@@ -161,10 +161,10 @@ func WaitSignatureAndBroadcast(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
-	var sigOpAndtx requests.SigOpNameAndTx
+	var transaction requests.TransactionWithSigOpNameAndKey
 
 	//validate the request body
-	if err := c.BindJSON(&sigOpAndtx); err != nil {
+	if err := c.BindJSON(&transaction); err != nil {
 		c.JSON(http.StatusBadRequest,
 			responses.Response{
 				Message: "error",
@@ -172,7 +172,7 @@ func WaitSignatureAndBroadcast(c *gin.Context) {
 		return
 	}
 
-	hash, err := services.WaitSignatureAndBroadcast(ctxWT, sigOpAndtx)
+	hash, err := services.WaitSignatureAndBroadcast(ctxWT, transaction)
 	if err != nil {
 		log.Printf("error waiting for signature and broadcast: %v", err)
 		c.JSON(http.StatusInternalServerError,

@@ -7,6 +7,7 @@ import type {
   IBroadcastTransactionResponseDTO,
   ICreateTransactionDTO,
   IPendingMpcOperationDTO,
+  TransactionRequestDTO,
 } from '../../typings/DTOs';
 import type { AccountAddress, TokenOrCoin } from '../../typings';
 import type { Transaction } from '@coinbase/waas-sdk-react-native';
@@ -154,40 +155,36 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
 
             /* Transact */
 
+            const transaction: TransactionRequestDTO = {
+              chainID: CHAIN_ID,
+              nonce: txCount,
+              maxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
+              maxFeePerGas: gasInfo.maxFeePerGas!.toHexString(),
+              gas: estimation.toNumber(),
+              from: from.address,
+              key: from.key,
+              to: token.address,
+              value: '0x0',
+              data: data.substring(2),
+            };
+
+            // TODO use one transaction object for this with optional key and singatureOP field
             const { mpc_data, signatureOp } = await api<ICreateTransactionDTO, any>({
               path: 'protected/waas/create-transaction',
               method: 'POST',
               token: user.token,
-              body: {
-                chainID: CHAIN_ID,
-                nonce: txCount,
-                maxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
-                maxFeePerGas: gasInfo.maxFeePerGas!.toHexString(),
-                gas: estimation.toNumber(),
-                from: from.address,
-                to: token.address,
-                value: '0x0',
-                data: data.substring(2),
-              },
+              body: transaction,
             });
 
             await computeMPCOperation(mpc_data);
 
-            const { success } = await api<any, any>({
+            const { txHash } = await api<any, any>({
               path: 'protected/waas/wait-signature-and-broadcast',
               method: 'POST',
               token: user.token,
               body: {
                 sigOpname: signatureOp,
-                chainID: CHAIN_ID,
-                nonce: txCount,
-                maxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
-                maxFeePerGas: gasInfo.maxFeePerGas!.toHexString(),
-                gas: estimation.toNumber(),
-                from: from.address,
-                to: token.address,
-                value: '0x0',
-                data: data.substring(2),
+                ...transaction,
               },
             });
             return Promise.resolve('lel');

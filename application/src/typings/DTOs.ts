@@ -66,3 +66,27 @@ export interface ICreateTransactionDTO {
   signatureOp: string;
   mpc_data: string;
 }
+
+export interface TransactionRequestDTO {
+  sigOpName?: string;
+  key: string;
+  from: string;
+  // The chain ID of the transaction as a "0x"-prefixed hex string.
+  chainID: string;
+  // The nonce of the transaction.
+  nonce: number;
+  // The EIP-1559 maximum priority fee per gas as a "0x"-prefixed hex string.
+  maxPriorityFeePerGas: string;
+  // The EIP-1559 maximum fee per gas as a "0x"-prefixed hex string.
+  maxFeePerGas: string;
+  // The maximum amount of gas to use on the transaction.
+  gas: number;
+  // The checksummed address to which the transaction is addressed, as a "0x"-prefixed hex string.
+  // Note: This is NOT a WaaS Address resource of the form
+  // `networks/{networkID}/addresses/{addressID}.
+  to: string;
+  // The native value of the transaction as a "0x"-prefixed hex string.
+  value: string;
+  // The hex-encoded data for the transaction.
+  data: string;
+}

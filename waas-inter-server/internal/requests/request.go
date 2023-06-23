@@ -23,20 +23,9 @@ type WalletResource struct {
 	Wallet string `json:"wallet,omitempty"`
 }
 
-type Transaction struct {
-	ChainID              string `json:"chainID"`
-	Nonce                uint64 `json:"nonce"`
-	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`
-	MaxFeePerGas         string `json:"maxFeePerGas"`
-	Gas                  uint64 `json:"gas"`
-	From                 string `json:"from"`
-	To                   string `json:"to"`
-	Value                string `json:"value"`
-	Data                 string `json:"data"`
-}
-
-type SigOpNameAndTx struct {
-	SigOpName            string `json:"sigOpname"`
+type TransactionWithSigOpNameAndKey struct {
+	SigOpName            string `json:"sigOpName"`
+	Key                  string `json:"key"`
 	ChainID              string `json:"chainID"`
 	Nonce                uint64 `json:"nonce"`
 	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`

@@ -185,7 +185,7 @@ func PollMpcOperation(ctx context.Context, userId string) (*keys.MPCOperation, e
 	}
 }
 
-func CreateTransaction(ctx context.Context, userId string, transaction requests.Transaction) (*responses.CreateTxSignatureResponse, error) {
+func CreateTransaction(ctx context.Context, userId string, transaction requests.TransactionWithSigOpNameAndKey) (*responses.CreateTxSignatureResponse, error) {
 	client, err := v1clients.NewProtocolServiceClient(ctx, authOpt)
 	if err != nil {
 		log.Fatalf("error instantiating protocol service client: %v", err)
@@ -231,7 +231,7 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 	}
 
 	sigReq := &keys.CreateSignatureRequest{
-		Parent: user.Addresses[0].Key, // TODO use the correct key for the addy
+		Parent: transaction.Key,
 		Signature: &keys.Signature{
 			Payload: tx.GetRequiredSignatures()[0].GetPayload(),
 		},
@@ -258,7 +258,7 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 	}
 }
 
-func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.SigOpNameAndTx) (string, error) {
+func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.TransactionWithSigOpNameAndKey) (string, error) {
 	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
 
 	if err != nil {
