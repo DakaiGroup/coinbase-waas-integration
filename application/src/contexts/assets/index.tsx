@@ -187,7 +187,7 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
                 ...transaction,
               },
             });
-            return Promise.resolve('lel');
+            return Promise.resolve(txHash);
           } else {
             throw new Error('You can not send native tokens with this method');
           }

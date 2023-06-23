@@ -223,9 +223,6 @@ func CreateTransaction(ctx context.Context, userId string, transaction requests.
 
 	tx, err := client.ConstructTransaction(ctx, req)
 
-	fmt.Println("construced tx:")
-	fmt.Println(tx)
-
 	if err != nil {
 		log.Fatalf("error creating tx: %v", err)
 	}
@@ -270,13 +267,12 @@ func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.Transact
 
 	signature, err := resp.Wait(ctx)
 
-	fmt.Println("signature: ")
-	fmt.Println(signature)
-
 	if err != nil {
 		log.Printf("Cannot wait signature response: %v", err)
 		return "", err
 	}
+
+	log.Println("Signature OP completed...")
 
 	data, err := hex.DecodeString(sigOpAndTx.Data)
 	if err != nil {
@@ -321,7 +317,7 @@ func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.Transact
 		return "", err
 	}
 
-	fmt.Printf("Transaction broadcasted: %v", broadcastTx.Hash)
+	log.Printf("Transaction broadcasted: %v", broadcastTx.Hash)
 
 	return broadcastTx.Hash, nil
 }
