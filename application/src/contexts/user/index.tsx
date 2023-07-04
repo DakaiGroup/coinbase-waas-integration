@@ -43,8 +43,6 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
   /* States */
   const [user, setUser] = useState<User | null>(null);
 
-  console.log({ user });
-
   const onCreateAddress = useCallback(async (): Promise<'ok' | string> => {
     try {
       if (user) {
@@ -87,8 +85,6 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
             sleep: attemptsTillNow * 1000,
           });
 
-          console.log({ addresses: response.data.user.addresses });
-
           if (response.data.user.wallet) {
             return Promise.resolve(response);
           } else {
@@ -118,42 +114,40 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
           path: 'protected/waas/create-wallet',
         });
 
-        console.log(mpcData);
-        console.log('success');
-
         await computeMPCOperation(mpcData);
 
-        console.log('success2');
-
+        // Poll MPC operation on our server
         const { mpc_data: archiveMpcData } = await api<IPendingMpcOperationDTO, any>({
           method: 'GET',
           token: user.token,
           path: 'protected/waas/poll-mpc-operation',
         });
 
-        console.log('success3');
-
         // TODO use the real passcode here
         await computePrepareDeviceArchiveMPCOperation(archiveMpcData, '123456');
 
         console.log('success4');
 
-        // first one is a boolean
+        // TODO first one is a boolean
         const response = await api<any, any>({
           method: 'GET',
           token: user.token,
           path: 'protected/waas/wait-wallet',
         });
 
-        console.log({ response });
-
         if (response) {
-          await onCreateAddress();
-          // Poll the current user for 2 mins
-          const response = await onLongPollUser();
-
-          setUser(transformIUserResponseDTO(response, user.token));
           // Create address for our freshly created wallet
+          await onCreateAddress();
+
+          // Poll the current user for 2 mins
+          const newUser = await onLongPollUser();
+
+          if (typeof newUser !== 'string') {
+            setUser(transformIUserResponseDTO(newUser, user.token));
+          } else {
+            throw new Error(response);
+          }
+
           return Promise.resolve('ok');
         } else {
           throw new Error('Unsuccessful waiting for wallet');
@@ -165,7 +159,7 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
       console.error(error);
       return Promise.reject(String(error?.message || error));
     }
-  }, [user, onCreateAddress]);
+  }, [user, onCreateAddress, onLongPollUser]);
 
   const onRegistration = useCallback(async (username: string, password: string): Promise<'ok' | string> => {
     try {
@@ -200,8 +194,6 @@ const UserProvider = (props: React.PropsWithChildren<{}>) => {
         path: 'protected/user/current',
         token,
       });
-
-      console.log({ addresses: response.data.user.addresses });
 
       setUser(transformIUserResponseDTO(response, token));
 

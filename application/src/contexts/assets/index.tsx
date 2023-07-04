@@ -5,9 +5,9 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 /* Types */
 import type {
   IBroadcastTransactionResponseDTO,
-  ICreateTransactionDTO,
+  ICreateTransactionResponseDTO,
+  ICreateTransactionRequestDTO,
   IPendingMpcOperationDTO,
-  TransactionRequestDTO,
 } from '../../typings/DTOs';
 import type { AccountAddress, TokenOrCoin } from '../../typings';
 import type { Transaction } from '@coinbase/waas-sdk-react-native';
@@ -18,7 +18,6 @@ import {
   getSignedTransaction,
   waitPendingSignature,
   computeMPCOperation,
-  getAddress,
   initMPCSdk,
 } from '@coinbase/waas-sdk-react-native';
 import { ABI, TOKEN_ADDRESSES } from '../../constants';
@@ -72,32 +71,23 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             Data: '',
           };
 
-          console.log(1);
           /* Transact */
           await createSignatureFromTx(from.key, transaction);
 
-          console.log(2);
-
+          /* Get pending mpc data */
           const pendingSignatures = await api<IPendingMpcOperationDTO, any>({
             path: 'protected/waas/poll-mpc-operation',
             method: 'GET',
             token: user.token,
           });
 
-          console.log(3);
-
           await computeMPCOperation(pendingSignatures.mpc_data);
-
-          console.log(4);
 
           const signatureResult = await waitPendingSignature(pendingSignatures.name);
 
-          console.log(5);
-
           const signedTransaction = await getSignedTransaction(transaction, signatureResult);
 
-          console.log(6);
-
+          /* Prodcast transaction to our server */
           const response = await api<IBroadcastTransactionResponseDTO, any>({
             path: 'protected/waas/broadcast-transaction',
             method: 'POST',
@@ -106,8 +96,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               rawTransaction: signedTransaction.RawTransaction,
             },
           });
-
-          console.log(7);
 
           return Promise.resolve(response.txHash);
         } else {
@@ -131,7 +119,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
             /* Get basic informations for transaction initiation */
-            console.log(from.rawAddress);
             const txCount = await provider.getTransactionCount(from.address);
             const gasInfo = await provider.getFeeData();
 
@@ -153,9 +140,8 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               ethers.utils.parseUnits(amount, token.decimals),
             ]);
 
-            /* Transact */
-
-            const transaction: TransactionRequestDTO = {
+            /* Prepare the transaction */
+            const transaction: ICreateTransactionRequestDTO = {
               chainID: CHAIN_ID,
               nonce: txCount,
               maxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
@@ -168,8 +154,8 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
               data: data.substring(2),
             };
 
-            // TODO use one transaction object for this with optional key and singatureOP field
-            const { mpc_data, signatureOp } = await api<ICreateTransactionDTO, any>({
+            /* Transact */
+            const { mpc_data, signatureOp } = await api<ICreateTransactionResponseDTO, ICreateTransactionRequestDTO>({
               path: 'protected/waas/create-transaction',
               method: 'POST',
               token: user.token,
@@ -178,6 +164,7 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
 
             await computeMPCOperation(mpc_data);
 
+            /* Prodcast transaction to our server for signing */
             const { txHash } = await api<any, any>({
               path: 'protected/waas/wait-signature-and-broadcast',
               method: 'POST',
@@ -204,8 +191,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
 
   const onGetAssets = useCallback(async (address: string) => {
     try {
-      await initMPCSdk(true);
-
       const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
       /* Get the information about assets */

@@ -62,12 +62,12 @@ export interface IPendingMpcOperationDTO {
   mpc_data: string;
 }
 
-export interface ICreateTransactionDTO {
+export interface ICreateTransactionResponseDTO {
   signatureOp: string;
   mpc_data: string;
 }
 
-export interface TransactionRequestDTO {
+export interface ICreateTransactionRequestDTO {
   sigOpName?: string;
   key: string;
   from: string;
