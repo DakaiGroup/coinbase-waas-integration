@@ -24,12 +24,12 @@ export interface IAPIRequest<Body> {
   path: string;
   body?: Body;
   token?: string;
+  sleep?: number;
 }
 
 export type User = {
   addresses?: Array<AccountAddress>;
   wallet?: string;
-  deviceGroup?: string;
   token: string;
   name: string;
 };
@@ -45,4 +45,5 @@ export type TokenOrCoin = {
 export type AccountAddress = {
   rawAddress: string;
   address: string;
+  key: string;
 };

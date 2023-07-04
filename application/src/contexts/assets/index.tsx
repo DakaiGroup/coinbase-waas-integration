@@ -3,24 +3,25 @@ import '@ethersproject/shims';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 /* Types */
-import type { IBroadcastTransactionResponseDTO } from '../../typings/DTOs';
+import type {
+  IBroadcastTransactionResponseDTO,
+  ICreateTransactionResponseDTO,
+  ICreateTransactionRequestDTO,
+  IPendingMpcOperationDTO,
+} from '../../typings/DTOs';
 import type { AccountAddress, TokenOrCoin } from '../../typings';
 import type { Transaction } from '@coinbase/waas-sdk-react-native';
 
 /* Data Things */
 import {
-  pollForPendingSignatures,
   createSignatureFromTx,
   getSignedTransaction,
-  initMPCWalletService,
   waitPendingSignature,
   computeMPCOperation,
-  initMPCKeyService,
-  getAddress,
   initMPCSdk,
 } from '@coinbase/waas-sdk-react-native';
-import { API_KEY_NAME, API_PRIVATE_KEY, RPC_URL, CHAIN_ID } from '@env';
 import { ABI, TOKEN_ADDRESSES } from '../../constants';
+import { RPC_URL, CHAIN_ID } from '@env';
 import { UserContext } from '../user';
 import { ethers } from 'ethers';
 import { api } from '../../utils';
@@ -51,18 +52,12 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
       try {
         if (user) {
           await initMPCSdk(true);
-          await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
-          await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
           const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
           /* Get basic informations for transaction initiation */
           const txCount = await provider.getTransactionCount(from.address);
           const gasInfo = await provider.getFeeData();
-
-          const retrievedAddress = await getAddress(from.rawAddress);
-
-          const keyName = retrievedAddress.MPCKeys[0];
 
           /* Prepare the transaction */
           const transaction: Transaction = {
@@ -77,16 +72,22 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
           };
 
           /* Transact */
-          await createSignatureFromTx(keyName, transaction);
+          await createSignatureFromTx(from.key, transaction);
 
-          const pendingSignatures = await pollForPendingSignatures(user.deviceGroup);
+          /* Get pending mpc data */
+          const pendingSignatures = await api<IPendingMpcOperationDTO, any>({
+            path: 'protected/waas/poll-mpc-operation',
+            method: 'GET',
+            token: user.token,
+          });
 
-          await computeMPCOperation(pendingSignatures[0]?.MPCData);
+          await computeMPCOperation(pendingSignatures.mpc_data);
 
-          const signatureResult = await waitPendingSignature(pendingSignatures[0]?.Operation);
+          const signatureResult = await waitPendingSignature(pendingSignatures.name);
 
           const signedTransaction = await getSignedTransaction(transaction, signatureResult);
 
+          /* Prodcast transaction to our server */
           const response = await api<IBroadcastTransactionResponseDTO, any>({
             path: 'protected/waas/broadcast-transaction',
             method: 'POST',
@@ -114,16 +115,12 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
         if (user) {
           if (token.address) {
             await initMPCSdk(true);
-            await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
-            await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
 
             const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
             /* Get basic informations for transaction initiation */
             const txCount = await provider.getTransactionCount(from.address);
             const gasInfo = await provider.getFeeData();
-            const retrievedAddress = await getAddress(from.rawAddress);
-            const keyName = retrievedAddress.MPCKeys[0];
 
             /* Preapate the contract */
             const tokenContract = new ethers.Contract(token.address, ABI, provider);
@@ -144,37 +141,40 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
             ]);
 
             /* Prepare the transaction */
-            const transaction: Transaction = {
-              ChainID: CHAIN_ID,
-              Nonce: txCount,
-              MaxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
-              MaxFeePerGas: gasInfo.maxFeePerGas!.toHexString(),
-              Gas: estimation.toNumber(),
-              To: token.address,
-              Value: '0x0',
-              Data: data.substring(2),
+            const transaction: ICreateTransactionRequestDTO = {
+              chainID: CHAIN_ID,
+              nonce: txCount,
+              maxPriorityFeePerGas: gasInfo.maxPriorityFeePerGas!.toHexString(),
+              maxFeePerGas: gasInfo.maxFeePerGas!.toHexString(),
+              gas: estimation.toNumber(),
+              from: from.address,
+              key: from.key,
+              to: token.address,
+              value: '0x0',
+              data: data.substring(2),
             };
 
             /* Transact */
-            await createSignatureFromTx(keyName, transaction);
+            const { mpc_data, signatureOp } = await api<ICreateTransactionResponseDTO, ICreateTransactionRequestDTO>({
+              path: 'protected/waas/create-transaction',
+              method: 'POST',
+              token: user.token,
+              body: transaction,
+            });
 
-            const pendingSignatures = await pollForPendingSignatures(user.deviceGroup);
+            await computeMPCOperation(mpc_data);
 
-            await computeMPCOperation(pendingSignatures[0]?.MPCData);
-
-            const signatureResult = await waitPendingSignature(pendingSignatures[0]?.Operation);
-
-            const signedTransaction = await getSignedTransaction(transaction, signatureResult);
-
-            const response = await api<IBroadcastTransactionResponseDTO, any>({
-              path: 'protected/waas/broadcast-transaction',
+            /* Prodcast transaction to our server for signing */
+            const { txHash } = await api<any, any>({
+              path: 'protected/waas/wait-signature-and-broadcast',
               method: 'POST',
               token: user.token,
               body: {
-                rawTransaction: signedTransaction.RawTransaction,
+                sigOpname: signatureOp,
+                ...transaction,
               },
             });
-            return Promise.resolve(response.txHash);
+            return Promise.resolve(txHash);
           } else {
             throw new Error('You can not send native tokens with this method');
           }
@@ -191,10 +191,6 @@ const AssetsProvider = (props: React.PropsWithChildren<{}>) => {
 
   const onGetAssets = useCallback(async (address: string) => {
     try {
-      await initMPCSdk(true);
-      await initMPCKeyService(API_KEY_NAME, API_PRIVATE_KEY);
-      await initMPCWalletService(API_KEY_NAME, API_PRIVATE_KEY);
-
       const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
       /* Get the information about assets */

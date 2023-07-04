@@ -5,8 +5,7 @@ type Response struct {
 	Data    map[string]interface{} `json:"data"`
 }
 
-type WalletGenerationResponse struct {
-	WalletOpName  string `json:"walletOpName"`
-	MpcData []byte `json:"mpcData"`
-	DeviceGroup  string `json:"deviceGroup"`
+type CreateTxSignatureResponse struct {
+	MpcData         []byte `json:"mpc_data"`
+	SignatureOpName string `json:"signatureOp"`
 }

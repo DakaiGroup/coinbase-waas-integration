@@ -60,6 +60,18 @@ func UpdateUserWalletById(ctx context.Context, userId string, walletName string)
 	return userCollection.UpdateOne(ctx, filter, updateWallet)
 }
 
+func UpdateUserWalletOpById(ctx context.Context, userId string, walletOp string) (*mongo.UpdateResult, error) {
+	objId, _ := primitive.ObjectIDFromHex(userId)
+	filter := bson.D{{Key: "id", Value: objId}}
+
+	updateWalletOp := bson.D{{Key: "$set",
+		Value: bson.D{
+			{Key: "walletOp", Value: walletOp}},
+	}}
+
+	return userCollection.UpdateOne(ctx, filter, updateWalletOp)
+}
+
 func UpdateDeviceGroupById(ctx context.Context, userId string, deviceGroup string) (*mongo.UpdateResult, error) {
 	objId, _ := primitive.ObjectIDFromHex(userId)
 	filter := bson.D{{Key: "id", Value: objId}}
@@ -72,12 +84,13 @@ func UpdateDeviceGroupById(ctx context.Context, userId string, deviceGroup strin
 	return userCollection.UpdateOne(ctx, filter, updateDeviceGroup)
 }
 
-func InsertNewUserAddressById(ctx context.Context, userId string, newAddress string) (*mongo.UpdateResult, error) {
+func InsertNewUserAddressAndKeyById(ctx context.Context, userId string, newAddress string, key string) (*mongo.UpdateResult, error) {
 	objId, _ := primitive.ObjectIDFromHex(userId)
 	filter := bson.D{{Key: "id", Value: objId}}
 
 	address := models.Address{
 		Address: newAddress,
+		Key: key,
 	}
 
 	change := bson.M{"$push": bson.M{"addresses": address}}

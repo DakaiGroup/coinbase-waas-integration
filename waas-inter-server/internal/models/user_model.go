@@ -10,11 +10,13 @@ type User struct {
 	DeviceId    string             `json:"deviceId,omitempty" bson:"deviceId,omitempty"`
 	DeviceGroup string             `json:"deviceGroup,omitempty" bson:"deviceGroup,omitempty"`
 	Wallet      string             `json:"wallet,omitempty" bson:"wallet,omitempty"`
+	WalletOp    string             `json:"walletOp,omitempty" bson:"walletOp,omitempty"`
 	Addresses   []Address          `json:"addresses,omitempty" bson:"addresses,omitempty"`
 }
 
 type Address struct {
 	Address string `json:"address,omitempty" bson:"address,omitempty"`
+	Key     string `json:"key,omitempty" bson:"key,omitempty"`
 }
 
 type Pool struct {

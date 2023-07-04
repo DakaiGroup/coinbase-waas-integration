@@ -2,21 +2,30 @@ package services
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log"
+
+	//"math"
+	//"math/big"
 	"net/http"
 	"time"
 	"waas-example/inter-server/internal/configs"
 	"waas-example/inter-server/internal/db"
+	"waas-example/inter-server/internal/requests"
 	"waas-example/inter-server/internal/responses"
 
-	"github.com/INFURA/go-ethlibs/node"
 	"github.com/coinbase/waas-client-library-go/auth"
 	"github.com/coinbase/waas-client-library-go/clients"
 	v1clients "github.com/coinbase/waas-client-library-go/clients/v1"
 	keys "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_keys/v1"
+
+	//mpcTransactions "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_transactions/v1"
 	wallets "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/mpc_wallets/v1"
 	pools "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/pools/v1"
+	inputs "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/protocols/ethereum/v1"
+	protocols "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/protocols/v1"
+	v1types "github.com/coinbase/waas-client-library-go/gen/go/coinbase/cloud/types/v1"
 )
 
 var authOpt = clients.WithAPIKey(&auth.APIKey{
@@ -71,7 +80,7 @@ func RegisterDevice(ctx context.Context, registrationData string) (string, error
 	return device.GetName(), nil
 }
 
-func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerationResponse, error) {
+func CreateWallet(ctx context.Context, userId string) (*keys.MPCOperation, error) {
 
 	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
 
@@ -97,6 +106,12 @@ func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerati
 		return nil, err
 	}
 
+	_, err = db.UpdateUserWalletOpById(ctx, userId, walletOp.Name())
+	if err != nil {
+		log.Printf("error saving walletOp name: %v", err)
+		return nil, err
+	}
+
 	metadata, _ := walletOp.Metadata()
 	log.Printf("Succesfully CreateMPCWallet operation and the following deviceGroup: %v", metadata.GetDeviceGroup())
 
@@ -106,10 +121,11 @@ func CreateWallet(ctx context.Context, userId string) (*responses.WalletGenerati
 	if err != nil {
 		return nil, err
 	}
+
 	resultCh, errorCh := pollMPCOperations(ctx, 200, metadata.GetDeviceGroup())
 	select {
 	case mpcOp := <-resultCh:
-		return &responses.WalletGenerationResponse{WalletOpName: walletOp.Name(), MpcData: mpcOp.GetMpcData(), DeviceGroup: metadata.GetDeviceGroup()}, nil
+		return mpcOp, nil
 	case err := <-errorCh:
 		return nil, err
 	}
@@ -141,7 +157,7 @@ func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, erro
 		return nil, err
 	}
 
-	_, err = db.InsertNewUserAddressById(ctx, userId, address.GetName())
+	_, err = db.InsertNewUserAddressAndKeyById(ctx, userId, address.GetName(), address.MpcKeys[0])
 	if err != nil {
 		log.Printf("error saving new address: %v", err)
 		return nil, err
@@ -153,18 +169,183 @@ func GenerateAddress(ctx context.Context, userId string) (*wallets.Address, erro
 	return address, nil
 }
 
-// not using waas lib but logically it fits here
-func BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
-	client, err := node.NewClient(ctx, configs.RpcUrl())
+func PollMpcOperation(ctx context.Context, userId string) (*keys.MPCOperation, error) {
+	user, err := db.GetUserById(ctx, userId)
+
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
 
-	return client.SendRawTransaction(ctx, "0x"+rawTx)
+	resultCh, errorCh := pollMPCOperations(ctx, 200, user.DeviceGroup)
+	select {
+	case mpcOp := <-resultCh:
+		return mpcOp, nil
+	case err := <-errorCh:
+		return nil, err
+	}
 }
 
-func SaveWallet(ctx context.Context, userId string, walletId string) (bool, error) {
-	_, err := db.UpdateUserWalletById(ctx, userId, walletId)
+func CreateTransaction(ctx context.Context, userId string, transaction requests.TransactionWithSigOpNameAndKey) (*responses.CreateTxSignatureResponse, error) {
+	client, err := v1clients.NewProtocolServiceClient(ctx, authOpt)
+	if err != nil {
+		log.Fatalf("error instantiating protocol service client: %v", err)
+	}
+
+	user, err := db.GetUserById(ctx, userId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := hex.DecodeString(transaction.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &protocols.ConstructTransactionRequest{
+		Network: configs.Network(),
+		Input: &v1types.TransactionInput{
+			Input: &v1types.TransactionInput_Ethereum_1559Input{
+				Ethereum_1559Input: &inputs.EIP1559TransactionInput{
+					ChainId:              transaction.ChainID,
+					Nonce:                transaction.Nonce,
+					MaxPriorityFeePerGas: transaction.MaxPriorityFeePerGas,
+					MaxFeePerGas:         transaction.MaxFeePerGas,
+					Gas:                  transaction.Gas,
+					FromAddress:          transaction.From,
+					ToAddress:            transaction.To,
+					Value:                transaction.Value,
+					Data:                 data,
+				},
+			},
+		},
+	}
+
+	tx, err := client.ConstructTransaction(ctx, req)
+
+	if err != nil {
+		log.Fatalf("error creating tx: %v", err)
+	}
+
+	sigReq := &keys.CreateSignatureRequest{
+		Parent: transaction.Key,
+		Signature: &keys.Signature{
+			Payload: tx.GetRequiredSignatures()[0].GetPayload(),
+		},
+	}
+
+	keyClient, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
+
+	if err != nil {
+		log.Fatalf("error instantiating KeyService client: %v", err)
+	}
+
+	sigOp, err := keyClient.CreateSignature(ctx, sigReq)
+
+	if err != nil {
+		return nil, err
+	}
+
+	resultCh, errorCh := pollMPCOperations(ctx, 200, user.DeviceGroup)
+	select {
+	case mpcOp := <-resultCh:
+		return &responses.CreateTxSignatureResponse{MpcData: mpcOp.GetMpcData(), SignatureOpName: sigOp.Name()}, nil
+	case err := <-errorCh:
+		return nil, err
+	}
+}
+
+func WaitSignatureAndBroadcast(ctx context.Context, sigOpAndTx requests.TransactionWithSigOpNameAndKey) (string, error) {
+	client, err := v1clients.NewMPCKeyServiceClient(ctx, authOpt)
+
+	if err != nil {
+		log.Fatalf("error instantiating KeyService client: %v", err)
+	}
+
+	// we saved the wallet operation in the create wallet call so we can use it here
+	resp := client.CreateSignatureOperation(sigOpAndTx.SigOpName)
+
+	signature, err := resp.Wait(ctx)
+
+	if err != nil {
+		log.Printf("Cannot wait signature response: %v", err)
+		return "", err
+	}
+
+	log.Println("Signature OP completed...")
+
+	data, err := hex.DecodeString(sigOpAndTx.Data)
+	if err != nil {
+		return "", err
+	}
+
+	broadcastReq := &protocols.BroadcastTransactionRequest{
+		Network: configs.Network(),
+		Transaction: &v1types.Transaction{
+			Input: &v1types.TransactionInput{
+				Input: &v1types.TransactionInput_Ethereum_1559Input{
+					Ethereum_1559Input: &inputs.EIP1559TransactionInput{
+						ChainId:              sigOpAndTx.ChainID,
+						Nonce:                sigOpAndTx.Nonce,
+						MaxPriorityFeePerGas: sigOpAndTx.MaxPriorityFeePerGas,
+						MaxFeePerGas:         sigOpAndTx.MaxFeePerGas,
+						Gas:                  sigOpAndTx.Gas,
+						FromAddress:          sigOpAndTx.From,
+						ToAddress:            sigOpAndTx.To,
+						Value:                sigOpAndTx.Value,
+						Data:                 data,
+					},
+				},
+			},
+			RequiredSignatures: []*v1types.RequiredSignature{
+				{
+					Signature: signature.Signature,
+				},
+			},
+		},
+	}
+
+	protoClient, err := v1clients.NewProtocolServiceClient(ctx, authOpt)
+
+	if err != nil {
+		log.Fatalf("error instantiating Protocol client: %v", err)
+	}
+
+	broadcastTx, err := protoClient.BroadcastTransaction(ctx, broadcastReq)
+
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("Transaction broadcasted: %v", broadcastTx.Hash)
+
+	return broadcastTx.Hash, nil
+}
+
+func WaitWallet(ctx context.Context, userId string) (bool, error) {
+	client, err := v1clients.NewMPCWalletServiceClient(ctx, authOpt)
+
+	if err != nil {
+		log.Fatalf("error instantiating WalletService client: %v", err)
+	}
+
+	user, err := db.GetUserById(ctx, userId)
+
+	if err != nil {
+		return false, err
+	}
+
+	// we saved the wallet operation in the create wallet call so we can use it here
+	resp := client.CreateMPCWalletOperation(user.WalletOp)
+
+	newWallet, err := resp.Wait(ctx)
+
+	if err != nil {
+		log.Printf("Cannot wait create mpc wallet response: %v", err)
+		return false, err
+	}
+
+	_, err = db.UpdateUserWalletById(ctx, userId, newWallet.Name)
 
 	if err != nil {
 		return false, err

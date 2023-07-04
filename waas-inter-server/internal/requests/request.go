@@ -1,8 +1,8 @@
 package requests
 
 type RegisterInput struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username         string `json:"username" binding:"required"`
+	Password         string `json:"password" binding:"required"`
 	RegistrationData string `json:"registrationData" binding:"required"`
 }
 
@@ -21,4 +21,18 @@ type PoolName struct {
 
 type WalletResource struct {
 	Wallet string `json:"wallet,omitempty"`
+}
+
+type TransactionWithSigOpNameAndKey struct {
+	SigOpName            string `json:"sigOpName"`
+	Key                  string `json:"key"`
+	ChainID              string `json:"chainID"`
+	Nonce                uint64 `json:"nonce"`
+	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`
+	MaxFeePerGas         string `json:"maxFeePerGas"`
+	Gas                  uint64 `json:"gas"`
+	From                 string `json:"from"`
+	To                   string `json:"to"`
+	Value                string `json:"value"`
+	Data                 string `json:"data"`
 }
