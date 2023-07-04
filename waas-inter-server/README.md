@@ -142,7 +142,7 @@ Response
 
 ### Create wallet
 
-This endpoint should be called when the user don't have a wallet at all along with the SDK where the polling and proccessing happens. The response contains the operation number, which can be used to poll and wait for the pending MPC Wallet.
+This endpoint should be called when the user don't have a wallet at all along with the SDK. The response contains the operation number, which can be used to poll and wait for the pending MPC Wallet.
 
 Response
 

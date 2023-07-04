@@ -18,7 +18,6 @@ Currently, it only supports iOS.
 
 Rename `.env.template` to `.env` and provide the required values.
 
-- `API_KEY_NAME` and `API_PRIVATE_KEY` is your API credentials for Coinbase WaaS.
 - `API_BASE` is your endpoints base URL.
 - `RPC_URL` is your JSON RPC provider URL.
 - `EXPLORER_URL` is your blockchain explorer base URL.
