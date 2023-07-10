@@ -10,18 +10,16 @@ func UserRoute(router *gin.Engine) {
 
 	public := router.Group("/api")
 
-	public.POST("/user/register", controllers.Register)
-	public.POST("/user/login", controllers.Login)
-	public.POST("/waas/create-pool", controllers.CreatePool) // for now its public
+	public.POST("/device/register", controllers.Register)
+	public.POST("/waas/create-pool", controllers.CreatePool)
 	// Auth required
-	protected := router.Group("/api/protected")
-	protected.Use(JwtAuthMiddleware())
+	// protected := router.Group("/api/protected")
+	// protected.Use(JwtAuthMiddleware())
 
-	protected.GET("/user/current", controllers.CurrentUser)
-	protected.POST("/waas/create-wallet", controllers.CreateWallet)
-	protected.POST("/waas/generate-address", controllers.GenerateAddress)
-	protected.GET("/waas/wait-wallet", controllers.WaitWallet)
-	protected.GET("/waas/poll-mpc-operation", controllers.PollMpcOperation)
-	protected.POST("/waas/create-transaction", controllers.CreateTransaction)
-	protected.POST("/waas/wait-signature-and-broadcast", controllers.WaitSignatureAndBroadcast)
+	public.POST("/waas/create-wallet", controllers.CreateWallet)
+	public.POST("/waas/generate-address", controllers.GenerateAddress)
+	public.GET("/waas/wait-wallet", controllers.WaitWallet)
+	public.GET("/waas/poll-mpc-operation", controllers.PollMpcOperation)
+	public.POST("/waas/create-transaction", controllers.CreateTransaction)
+	public.POST("/waas/wait-signature-and-broadcast", controllers.WaitSignatureAndBroadcast)
 }

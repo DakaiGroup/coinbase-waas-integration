@@ -2,11 +2,8 @@ package db
 
 import (
 	"context"
-	"html"
-	"strings"
 	"waas-example/inter-server/internal/configs"
 	"waas-example/inter-server/internal/models"
-	"waas-example/inter-server/internal/requests"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,18 +11,6 @@ import (
 )
 
 var userCollection *mongo.Collection = configs.GetCollection(configs.DB, "users")
-
-func CreateUser(ctx context.Context, registerInput requests.RegisterInput, hashedPassword []byte, poolModel *models.Pool, deviceName string) (*mongo.InsertOneResult, error) {
-	newUser := models.User{
-		Id:          primitive.NewObjectID(),
-		Username:    html.EscapeString(strings.TrimSpace(registerInput.Username)),
-		Password:    string(hashedPassword),
-		DeviceId:    deviceName,
-		Pool:        *poolModel,
-	}
-
-	return userCollection.InsertOne(ctx, newUser)
-}
 
 func GetUserByUserName(ctx context.Context, username string) (*models.User, error) {
 	var user models.User
@@ -90,7 +75,7 @@ func InsertNewUserAddressAndKeyById(ctx context.Context, userId string, newAddre
 
 	address := models.Address{
 		Address: newAddress,
-		Key: key,
+		Key:     key,
 	}
 
 	change := bson.M{"$push": bson.M{"addresses": address}}
