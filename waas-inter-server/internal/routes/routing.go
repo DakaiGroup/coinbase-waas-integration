@@ -8,13 +8,14 @@ import (
 
 func UserRoute(router *gin.Engine) {
 
+	// Auth required
+	// protected := router.Group("/api/protected")
+	// protected.Use(JwtAuthMiddleware())
+
 	public := router.Group("/api")
 
 	public.POST("/device/register", controllers.Register)
 	public.POST("/waas/create-pool", controllers.CreatePool)
-	// Auth required
-	// protected := router.Group("/api/protected")
-	// protected.Use(JwtAuthMiddleware())
 
 	public.POST("/waas/create-wallet", controllers.CreateWallet)
 	public.POST("/waas/generate-address", controllers.GenerateAddress)

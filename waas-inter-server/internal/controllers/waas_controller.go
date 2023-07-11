@@ -8,7 +8,6 @@ import (
 	"waas-example/inter-server/internal/requests"
 	"waas-example/inter-server/internal/responses"
 	"waas-example/inter-server/internal/services"
-	"waas-example/inter-server/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,14 +42,19 @@ func CreateWallet(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
-	userId, err := utils.ExtractTokenID(c)
+	var createWalletData requests.CreateWalletData
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	//validate the request body
+	if err := c.BindJSON(&createWalletData); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
 
-	mpcOp, err := services.CreateWallet(ctxWT, userId)
+	mpcOp, err := services.CreateWallet(ctxWT, createWalletData.PoolName, createWalletData.DeviceId)
+
 	if err != nil {
 		log.Printf("error creating wallet: %v", err)
 		c.JSON(http.StatusInternalServerError,
@@ -69,14 +73,18 @@ func GenerateAddress(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
-	userId, err := utils.ExtractTokenID(c)
+	var walletResource requests.WalletResource
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	//validate the request body
+	if err := c.BindJSON(&walletResource); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
 
-	addressResp, err := services.GenerateAddress(ctxWT, userId)
+	addressResp, err := services.GenerateAddress(ctxWT, walletResource.Wallet)
 	if err != nil {
 		log.Printf("error generating address: %v", err)
 		c.JSON(http.StatusInternalServerError,
@@ -96,14 +104,18 @@ func WaitWallet(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
-	userId, err := utils.ExtractTokenID(c)
+	var waitWalletResource requests.WaitWalletResource
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	//validate the request body
+	if err := c.BindJSON(&waitWalletResource); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
 
-	success, err := services.WaitWallet(ctxWT, userId)
+	mpcWallet, err := services.WaitWallet(ctxWT, waitWalletResource.WalletOp)
 	if err != nil {
 		log.Printf("error waiting for wallet: %v", err)
 		c.JSON(http.StatusInternalServerError,
@@ -112,9 +124,9 @@ func WaitWallet(c *gin.Context) {
 				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
-	log.Printf("Successfully waited for wallet");
+	log.Printf("Successfully waited for wallet")
 
-	c.IndentedJSON(http.StatusOK, map[string]bool{"success": success})
+	c.IndentedJSON(http.StatusOK, mpcWallet)
 }
 
 // POST /waas/create-transaction
@@ -122,7 +134,7 @@ func CreateTransaction(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
-	var transaction requests.TransactionWithSigOpNameAndKey
+	var transaction requests.TransactionWithSigOpNameAndKeyAndDeviceGroup
 
 	//validate the request body
 	if err := c.BindJSON(&transaction); err != nil {
@@ -135,14 +147,7 @@ func CreateTransaction(c *gin.Context) {
 	log.Println("incomming TX:")
 	log.Println(transaction)
 
-	userId, err := utils.ExtractTokenID(c)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	creatTxResp, err := services.CreateTransaction(ctxWT, userId, transaction)
+	creatTxResp, err := services.CreateTransaction(ctxWT, transaction)
 	if err != nil {
 		log.Printf("error with create transaction: %v", err)
 		c.JSON(http.StatusInternalServerError,
@@ -151,7 +156,7 @@ func CreateTransaction(c *gin.Context) {
 				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
-	log.Printf("Successfully created transaction operation");
+	log.Printf("Successfully created transaction operation")
 
 	c.IndentedJSON(http.StatusOK, creatTxResp)
 }
@@ -190,14 +195,18 @@ func PollMpcOperation(c *gin.Context) {
 	ctxWT, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
 
-	userId, err := utils.ExtractTokenID(c)
+	var mpcOperaion requests.MPCOperation
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	//validate the request body
+	if err := c.BindJSON(&mpcOperaion); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.Response{
+				Message: "error",
+				Data:    map[string]interface{}{"error": err.Error()}})
 		return
 	}
 
-	mpcOp, err := services.PollMpcOperation(ctxWT, userId)
+	mpcOp, err := services.PollMpcOperation(ctxWT, mpcOperaion.DeviceGroup)
 	if err != nil {
 		log.Printf("error polling mpc op: %v", err)
 		c.JSON(http.StatusInternalServerError,

@@ -4,8 +4,6 @@ import (
 	"context"
 	"net/http"
 	"time"
-	"waas-example/inter-server/internal/configs"
-	"waas-example/inter-server/internal/db"
 	"waas-example/inter-server/internal/requests"
 	"waas-example/inter-server/internal/responses"
 	"waas-example/inter-server/internal/services"
@@ -31,14 +29,6 @@ func Register(c *gin.Context) {
 	// Find the only pool we have
 	ctxWT, cancel = context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
-	_, err := db.GetPoolByDisplayName(ctxWT, configs.PoolName())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError,
-			responses.Response{
-				Message: "error",
-				Data:    map[string]interface{}{"error": err.Error()}})
-		return
-	}
 
 	deviceName, err := services.RegisterDevice(ctxWT, registerInput.RegistrationData)
 
