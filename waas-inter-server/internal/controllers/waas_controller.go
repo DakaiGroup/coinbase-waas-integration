@@ -53,7 +53,7 @@ func CreateWallet(c *gin.Context) {
 		return
 	}
 
-	mpcOp, err := services.CreateWallet(ctxWT, createWalletData.PoolName, createWalletData.DeviceId)
+	mpcOp, walletOpName, err := services.CreateWallet(ctxWT, createWalletData.PoolName, createWalletData.DeviceId)
 
 	if err != nil {
 		log.Printf("error creating wallet: %v", err)
@@ -65,7 +65,7 @@ func CreateWallet(c *gin.Context) {
 	}
 	log.Printf("Successfully created MPC Operation: %v", mpcOp)
 
-	c.IndentedJSON(http.StatusOK, mpcOp)
+	c.IndentedJSON(http.StatusOK, responses.CreateWalletResponse{MpcOp: mpcOp, WalletOpName: walletOpName})
 }
 
 // POST /generate-address

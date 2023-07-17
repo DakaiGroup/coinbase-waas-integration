@@ -30,7 +30,7 @@ func Register(c *gin.Context) {
 	ctxWT, cancel = context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
 
-	deviceName, err := services.RegisterDevice(ctxWT, registerInput.RegistrationData)
+	deviceId, err := services.RegisterDevice(ctxWT, registerInput.RegistrationData)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError,
@@ -43,5 +43,5 @@ func Register(c *gin.Context) {
 	c.JSON(http.StatusCreated,
 		responses.Response{
 			Message: "success",
-			Data:    map[string]interface{}{"deviceName": deviceName}})
+			Data:    map[string]interface{}{"deviceId": deviceId}})
 }

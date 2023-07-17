@@ -74,7 +74,7 @@ func RegisterDevice(ctx context.Context, registrationData string) (string, error
 	return device.GetName(), nil
 }
 
-func CreateWallet(ctx context.Context, PoolName string, DeviceId string) (*keys.MPCOperation, error) {
+func CreateWallet(ctx context.Context, PoolName string, DeviceId string) (*keys.MPCOperation, string, error) {
 
 	log.Println(PoolName)
 	log.Println(DeviceId)
@@ -94,8 +94,10 @@ func CreateWallet(ctx context.Context, PoolName string, DeviceId string) (*keys.
 		Device:    DeviceId,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+
+	log.Println(walletOp.Name())
 
 	metadata, _ := walletOp.Metadata()
 	log.Printf("Succesfully CreateMPCWallet operation and the following deviceGroup: %v", metadata.GetDeviceGroup())
@@ -103,9 +105,9 @@ func CreateWallet(ctx context.Context, PoolName string, DeviceId string) (*keys.
 	resultCh, errorCh := pollMPCOperations(ctx, 200, metadata.GetDeviceGroup())
 	select {
 	case mpcOp := <-resultCh:
-		return mpcOp, nil
+		return mpcOp, walletOp.Name(), nil
 	case err := <-errorCh:
-		return nil, err
+		return nil, "", err
 	}
 }
 
@@ -179,7 +181,7 @@ func CreateTransaction(ctx context.Context, transaction requests.TransactionWith
 	}
 
 	sigReq := &keys.CreateSignatureRequest{
-		Parent: transaction.Key,
+		Parent: transaction.MpcKey,
 		Signature: &keys.Signature{
 			Payload: tx.GetRequiredSignatures()[0].GetPayload(),
 		},
@@ -198,6 +200,7 @@ func CreateTransaction(ctx context.Context, transaction requests.TransactionWith
 	}
 
 	resultCh, errorCh := pollMPCOperations(ctx, 200, transaction.DeviceGroup)
+
 	select {
 	case mpcOp := <-resultCh:
 		return &responses.CreateTxSignatureResponse{MpcData: mpcOp.GetMpcData(), SignatureOpName: sigOp.Name()}, nil

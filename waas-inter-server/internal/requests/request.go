@@ -50,7 +50,6 @@ type TransactionWithSigOpNameAndKey struct {
 
 type TransactionWithSigOpNameAndKeyAndDeviceGroup struct {
 	SigOpName            string `json:"sigOpName"`
-	Key                  string `json:"key"`
 	ChainID              string `json:"chainID"`
 	Nonce                uint64 `json:"nonce"`
 	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`
@@ -60,5 +59,6 @@ type TransactionWithSigOpNameAndKeyAndDeviceGroup struct {
 	To                   string `json:"to"`
 	Value                string `json:"value"`
 	Data                 string `json:"data"`
+	MpcKey               string `json:"mpcKey"`
 	DeviceGroup          string `json:"deviceGroup"`
 }

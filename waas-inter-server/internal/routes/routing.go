@@ -19,8 +19,8 @@ func UserRoute(router *gin.Engine) {
 
 	public.POST("/waas/create-wallet", controllers.CreateWallet)
 	public.POST("/waas/generate-address", controllers.GenerateAddress)
-	public.GET("/waas/wait-wallet", controllers.WaitWallet)
-	public.GET("/waas/poll-mpc-operation", controllers.PollMpcOperation)
+	public.POST("/waas/wait-wallet", controllers.WaitWallet)
+	public.POST("/waas/poll-mpc-operation", controllers.PollMpcOperation)
 	public.POST("/waas/create-transaction", controllers.CreateTransaction)
 	public.POST("/waas/wait-signature-and-broadcast", controllers.WaitSignatureAndBroadcast)
 }
